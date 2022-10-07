@@ -10,6 +10,7 @@ Hosta your second brain and [digital garden](https://jzhao.xyz/posts/networked-t
 3. Automatically generated backlinks, link previews, and local graph
 4. Built-in [[notes/CJK + Latex Support (测试) | CJK + Latex Support]] and [[notes/callouts | Admonition-style callouts]]
 5. Support for both Markdown Links and Wikilinks
+6. [[Linux Kernel Exploitation > Hunting for public vulnerabilities]]
 
 Check out some of the [amazing gardens that community members](notes/showcase.md) have published with Quartz or read about [why I made Quartz](notes/philosophy.md) to begin with.
 
