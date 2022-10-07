@@ -1,6 +1,6 @@
 ---
-title: 🪴 Quartz 3.
-enableToc: false
+title: 👾 KIKS.
+enableToc: true
 ---
 
 Hosta your second brain and [digital garden](https://jzhao.xyz/posts/networked-thought) for free. Quartz features
