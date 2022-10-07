@@ -1,0 +1,470 @@
+<!doctype html><html lang=en><head><meta charset=utf-8><meta name=description content="Introduction As mentioned in the previous article, Android uses the Binder for IPC communications. Good to know, the Binder was not created by Google."><title>Android Internals IPC: Binder and Service Manager Perspective</title><meta name=viewport content="width=device-width,initial-scale=1"><link rel="shortcut icon" type=image/png href=https://kiks7.github.io/pers-blog//icon.png><link href=https://kiks7.github.io/pers-blog/styles.7153093e4d1bbb584a28469cadfa3f88.min.css rel=stylesheet><link href=https://kiks7.github.io/pers-blog/styles/_light_syntax.86a48a52faebeaaf42158b72922b1c90.min.css rel=stylesheet id=theme-link><script src=https://kiks7.github.io/pers-blog/js/darkmode.c465a1865e296bbb96c374922017bdda.min.js></script>
+<script src=https://kiks7.github.io/pers-blog/js/util.9825137f5e7825e8553c68ce39ac9e44.min.js></script>
+<link rel=stylesheet href=https://cdn.jsdelivr.net/npm/katex@0.15.1/dist/katex.min.css integrity=sha384-R4558gYOUz8mP9YWpZJjofhk+zx0AS11p36HnD2ZKj/6JR5z27gSSULCNHIRReVs crossorigin=anonymous><script defer src=https://cdn.jsdelivr.net/npm/katex@0.15.1/dist/katex.min.js integrity=sha384-z1fJDqw8ZApjGO3/unPWUPsIymfsJmyrDVWC8Tv/a1HeOtGmkwNd/7xUS0Xcnvsx crossorigin=anonymous></script>
+<script defer src=https://cdn.jsdelivr.net/npm/katex@0.15.1/dist/contrib/auto-render.min.js integrity=sha384-+XBljXPPiv+OzfbB3cVmLHf4hdUFHlWNZN5spNQ7rmHTXpd7WvJum6fIACpNNfIR crossorigin=anonymous></script>
+<script defer src=https://cdn.jsdelivr.net/npm/katex@0.16.2/dist/contrib/copy-tex.min.js integrity=sha384-ww/583aHhxWkz5DEVn6OKtNiIaLi2iBRNZXfJRiY1Ai7tnJ9UXpEsyvOITVpTl4A crossorigin=anonymous></script>
+<script src=https://unpkg.com/@floating-ui/core@0.7.3></script>
+<script src=https://unpkg.com/@floating-ui/dom@0.5.4></script>
+<script src=https://kiks7.github.io/pers-blog/js/popover.53ad9a087e3feeaaa12b63bfd02d923b.min.js></script>
+<script src=https://kiks7.github.io/pers-blog/js/code-title.b35124ad8db0ba37162b886afb711cbc.min.js></script>
+<script src=https://kiks7.github.io/pers-blog/js/clipboard.c20857734e53a3fb733b7443879efa61.min.js></script>
+<script src=https://kiks7.github.io/pers-blog/js/callouts.7723cac461d613d118ee8bb8216b9838.min.js></script>
+<script>const BASE_URL="https://kiks7.github.io/pers-blog/",fetchData=Promise.all([fetch("https://kiks7.github.io/pers-blog/indices/linkIndex.5804227e032d5ef9d35a4e55a19e9d48.min.json").then(e=>e.json()).then(e=>({index:e.index,links:e.links})),fetch("https://kiks7.github.io/pers-blog/indices/contentIndex.c191bcf4ab297b53c6cda167ba6be1ae.min.json").then(e=>e.json())]).then(([{index:e,links:t},n])=>({index:e,links:t,content:n})),render=()=>{const e=new URL(BASE_URL),t=e.pathname,n=window.location.pathname,s=t==n;addCopyButtons(),addTitleToCodeBlocks(),addCollapsibleCallouts(),initPopover("https://kiks7.github.io/pers-blog",!0,!0);const o=document.getElementById("footer");if(o){const e=document.getElementById("graph-container");if(!e)return requestAnimationFrame(render);e.textContent="";const t=s&&!1;drawGraph("https://kiks7.github.io/pers-blog",t,[{"/moc":"#4388cc"}],t?{centerForce:1,depth:-1,enableDrag:!0,enableLegend:!1,enableZoom:!0,fontSize:.5,linkDistance:1,opacityScale:3,repelForce:1,scale:1.4}:{centerForce:1,depth:1,enableDrag:!0,enableLegend:!1,enableZoom:!0,fontSize:.6,linkDistance:1,opacityScale:3,repelForce:2,scale:1.2})}},init=(e=document)=>{addCopyButtons(),addTitleToCodeBlocks(),renderMathInElement(e.body,{delimiters:[{left:"$$",right:"$$",display:!0},{left:"$",right:"$",display:!1}],macros:{'’':"'"},throwOnError:!1})}</script><script type=module>
+    import { attachSPARouting } from "https:\/\/kiks7.github.io\/pers-blog\/js\/router.9d4974281069e9ebb189f642ae1e3ca2.min.js"
+    attachSPARouting(init, render)
+  </script></head><script async src="https://www.googletagmanager.com/gtag/js?id=G-XYFD95KB4J"></script>
+<script>var doNotTrack=!1;if(!doNotTrack){window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments)}gtag("js",new Date),gtag("config","G-XYFD95KB4J",{anonymize_ip:!1})}</script><body><div id=search-container><div id=search-space><input autocomplete=off id=search-bar name=search type=text aria-label=Search placeholder="Search for something..."><div id=results-container></div></div></div><script src=https://cdn.jsdelivr.net/npm/flexsearch@0.7.21/dist/flexsearch.bundle.js integrity="sha256-i3A0NZGkhsKjVMzFxv3ksk0DZh3aXqu0l49Bbh0MdjE=" crossorigin=anonymous defer></script>
+<script defer src=https://kiks7.github.io/pers-blog/js/full-text-search.24827f874defbbc6d529926cbfcfb493.min.js></script><div class=singlePage><header><h1 id=page-title><a href=https://kiks7.github.io/pers-blog/>👾 @kiks</a></h1><div class=spacer></div><div id=search-icon><p>Search</p><svg tabindex="0" aria-labelledby="title desc" role="img" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 19.9 19.7"><title id="title">Search Icon</title><desc id="desc">Icon to open search</desc><g class="search-path" fill="none"><path stroke-linecap="square" d="M18.5 18.3l-5.4-5.4"/><circle cx="8" cy="8" r="7"/></g></svg></div><div class=darkmode><input class=toggle id=darkmode-toggle type=checkbox tabindex=-1>
+<label id=toggle-label-light for=darkmode-toggle tabindex=-1><svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" id="dayIcon" viewBox="0 0 35 35" style="enable-background:new 0 0 35 35"><title>Light Mode</title><path d="M6 17.5C6 16.672 5.328 16 4.5 16h-3C.672 16 0 16.672.0 17.5S.672 19 1.5 19h3C5.328 19 6 18.328 6 17.5zM7.5 26c-.414.0-.789.168-1.061.439l-2 2C4.168 28.711 4 29.086 4 29.5 4 30.328 4.671 31 5.5 31c.414.0.789-.168 1.06-.44l2-2C8.832 28.289 9 27.914 9 27.5 9 26.672 8.329 26 7.5 26zm10-20C18.329 6 19 5.328 19 4.5v-3C19 .672 18.329.0 17.5.0S16 .672 16 1.5v3C16 5.328 16.671 6 17.5 6zm10 3c.414.0.789-.168 1.06-.439l2-2C30.832 6.289 31 5.914 31 5.5 31 4.672 30.329 4 29.5 4c-.414.0-.789.168-1.061.44l-2 2C26.168 6.711 26 7.086 26 7.5 26 8.328 26.671 9 27.5 9zM6.439 8.561C6.711 8.832 7.086 9 7.5 9 8.328 9 9 8.328 9 7.5c0-.414-.168-.789-.439-1.061l-2-2C6.289 4.168 5.914 4 5.5 4 4.672 4 4 4.672 4 5.5c0 .414.168.789.439 1.06l2 2.001zM33.5 16h-3c-.828.0-1.5.672-1.5 1.5s.672 1.5 1.5 1.5h3c.828.0 1.5-.672 1.5-1.5S34.328 16 33.5 16zM28.561 26.439C28.289 26.168 27.914 26 27.5 26c-.828.0-1.5.672-1.5 1.5.0.414.168.789.439 1.06l2 2C28.711 30.832 29.086 31 29.5 31c.828.0 1.5-.672 1.5-1.5.0-.414-.168-.789-.439-1.061l-2-2zM17.5 29c-.829.0-1.5.672-1.5 1.5v3c0 .828.671 1.5 1.5 1.5s1.5-.672 1.5-1.5v-3C19 29.672 18.329 29 17.5 29zm0-22C11.71 7 7 11.71 7 17.5S11.71 28 17.5 28 28 23.29 28 17.5 23.29 7 17.5 7zm0 18c-4.136.0-7.5-3.364-7.5-7.5s3.364-7.5 7.5-7.5 7.5 3.364 7.5 7.5S21.636 25 17.5 25z"/></svg></label><label id=toggle-label-dark for=darkmode-toggle tabindex=-1><svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" id="nightIcon" viewBox="0 0 100 100" style="enable-background='new 0 0 100 100'"><title>Dark Mode</title><path d="M96.76 66.458c-.853-.852-2.15-1.064-3.23-.534-6.063 2.991-12.858 4.571-19.655 4.571C62.022 70.495 50.88 65.88 42.5 57.5 29.043 44.043 25.658 23.536 34.076 6.47c.532-1.08.318-2.379-.534-3.23-.851-.852-2.15-1.064-3.23-.534-4.918 2.427-9.375 5.619-13.246 9.491-9.447 9.447-14.65 22.008-14.65 35.369.0 13.36 5.203 25.921 14.65 35.368s22.008 14.65 35.368 14.65c13.361.0 25.921-5.203 35.369-14.65 3.872-3.871 7.064-8.328 9.491-13.246C97.826 68.608 97.611 67.309 96.76 66.458z"/></svg></label></div></header><article><h1>Android Internals IPC: Binder and Service Manager Perspective</h1><p class=meta>Last updated
+Apr 26, 2020
+<a href=https://github.com/jackyzha0/quartz/tree/hugo/content/notes/Android%20Internals%20IPC%20-%20Binder%20and%20Service%20Manager%20Perspective.md rel=noopener>Edit Source</a></p><ul class=tags><li><a href=https://kiks7.github.io/pers-blog/tags/Android/>Android</a></li><li><a href=https://kiks7.github.io/pers-blog/tags/Reversing/>Reversing</a></li></ul><aside class=mainTOC><details><summary>Table of Contents</summary><nav id=TableOfContents><ol><li><a href=#introduction>Introduction</a></li><li><a href=#high-level-overview>High level overview</a></li><li><a href=#binder-introduction>Binder Introduction</a></li><li><a href=#binder-interactions-userland----kerneland>Binder interactions (userland &ndash;> kerneland)</a><ol><li><a href=#the-servicemanager>The Servicemanager</a></li><li><a href=#br_transaction>BR_TRANSACTION</a></li><li><a href=#svc_mgr_get_service>SVC_MGR_GET_SERVICE</a></li><li><a href=#svc_mgr_list_services>SVC_MGR_LIST_SERVICES</a></li><li><a href=#svc_mgr_add_service>SVC_MGR_ADD_SERVICE</a></li><li><a href=#comeback-to-the-service-handler>Comeback to the service handler</a></li></ol></li><li><a href=#little-resume>Little resume</a></li><li><a href=#conclusions>Conclusions</a></li></ol></nav></details></aside><a href=#introduction><h2 id=introduction><span class=hanchor arialabel=Anchor># </span>Introduction</h2></a><p>As mentioned in the previous article, Android uses the Binder for IPC communications. Good to know, the Binder was not created by Google. Its initial appearance was in BeOS, an old OS for mobile devices. After some acquisitions, original developers joined Android and took the Binder with them. The OpenBinder porting to Android was more implementation specific and it is a key component of the current Android OS. The official OpenBinder website is not up anymore, but there are some mirrors like
+<a href=http://www.angryredplanet.com/~hackbod/openbinder/docs/html/ rel=noopener>this one</a> that contain precious documentation.</p><a href=#high-level-overview><h2 id=high-level-overview><span class=hanchor arialabel=Anchor># </span>High level overview</h2></a><p>Binder is a Kernel module written in C++, mainly responsible to let processes securely, transparently and easily communicate with each other using a client-server architecture. The simplicity on how processes can interact together is awful, a client application just needs to call a method provided by the service (that is the server in the client-side architecture) and everything in between is handled by the Binder. With ‘everything in between’ I mean <strong>Location</strong>, <strong>Delivery</strong> and <strong>credentials</strong>.</p><p>When a client needs to talk to a service, he needs to locate the target service (that is, the target process). The Binder is responsible to locate the service, handle the communication, deliver messages and check for caller privileges (Credentials).<strong>The location stage is handled by the servicemanager</strong> that acts as the endpoint mapper, it maintains a service directory that maps an interface name to a Binder handle. So, when the Binder receives a request for a specific service, it interrogates the servicemanager. The servicemanager will return a handle to it after some permission checks (for example the AID_ISOLATED mentioned in the first part) scrolling on its service list (aka service directory). If the client has permissions to interact with the requested service, the Binder will proxy the communication and deliver the message to the server, that will elaborate the request and return the result to the Binder, that will turn it to the client as a &lsquo;message&rsquo;. These messages are technically called &lsquo;Parcel&rsquo;, containers that are written from both client and server in order to communicate serializing and deserializing necessary data (that can be parameters for clients and return values for services).</p><p><img src=https://kiks7.github.io/pers-blog//notes/images/android/2/1.png width=auto alt=img1></p><a href=#binder-introduction><h2 id=binder-introduction><span class=hanchor arialabel=Anchor># </span>Binder Introduction</h2></a><p>Let&rsquo;s start with the main component of an IPC transaction, the Binder. As we said, the Binder is a small kernel module that lives in the kernel and acts as a messenger for clients and services. Every operation in Android goes through the Binder, and that&rsquo;s why two researchers, Nitay Artenstein and Idam Revivo, took an interesting talk at BH2014, <em>‘Man in the Binder: He Who Controls IPC, Controls the Droid</em>’ (
+<a href="https://www.youtube.com/watch?v=O-UHvFjxwZ8&t=418s" rel=noopener>Youtube Video</a>).</p><p>This research demonstrates an advanced post exploitation technique (a rootkit implant) where it is possible to sniff every data that uses IPC, in order to manipulate network traffic and sensitive information by hooking binder calls.</p><p>The character device at <em>/dev/binder</em> is read/write by everyone, any process can perform read and write operations on it using <em>ioctl()</em>. The <em>ioctl()</em> responsible to handle the IPC connection from clients (applications) is located in the <em>&rsquo;libbinder.so&rsquo;</em> shared library, that is loaded in each application process. This library is responsible for the client initialization phase, setting up messages (aka Parcel) and talking with the binder module. We will deepen this specific library while talking, in next chapters, about the client and service implementations.</p><a href=#binder-interactions-userland----kerneland><h2 id=binder-interactions-userland----kerneland><span class=hanchor arialabel=Anchor># </span>Binder interactions (userland &ndash;> kerneland)</h2></a><p>First to introduce more concepts, let&rsquo;s first take an introduction on how a basic interaction works from userland to kerneland, from a client (or a service) to the binder kernel module. As a linux based OS, <em>ioctl</em> system call is used to talk with the kernel module using the special character file <em>&rsquo;/dev/binder</em>&rsquo;. The driver accepts different request codes:</p><p><em>BINDER_SET_MAX_THREAD</em>: Set limit thread numbers of a thread pool (deepened in the client/service implementation chapter)</p><p><em>BINDER_SET_CONTEXT_MGR</em>: Set the context manager (the service manager)</p><p><em>BINDER_THREAD_EXIT</em>: A thread exit the thread pool</p><p><em>BINDER_VERSION</em>: Get the Binder version</p><p><em>BINDER_WRITE_READ</em>: The most used code used for client and service requests</p><p>We will deepen all commands during these articles, but let&rsquo;s start with the <em>BINDER_WRITE_READ</em> request code.The binder module source code is at <em>drivers/android/binder.c</em>, here the <em>binder_ioctl()</em> is responsible to dispatch requests received from userland based on above request codes. In the case of a <em>BINDER_WRITE_READ</em> code, the <em>binder_ioctl_write_read()</em> is triggered and parameters are handled from userland to kerneland (and vice versa) using the <em>binder_write_read structure</em>:</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt>1
+</span><span class=lnt>2
+</span><span class=lnt>3
+</span><span class=lnt>4
+</span><span class=lnt>5
+</span><span class=lnt>6
+</span><span class=lnt>7
+</span><span class=lnt>8
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-CPP data-lang=CPP><span class=line><span class=cl>  <span class=k>struct</span> <span class=nc>binder_write_read</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>        <span class=kt>signed</span> <span class=kt>long</span> <span class=n>write_size</span><span class=p>;</span>  <span class=c1>// size of buffer by the client
+</span></span></span><span class=line><span class=cl><span class=c1></span>        <span class=kt>signed</span> <span class=kt>long</span> <span class=n>write_consumed</span><span class=p>;</span>  <span class=c1>// size of buffer by the binder
+</span></span></span><span class=line><span class=cl><span class=c1></span>        <span class=kt>unsigned</span> <span class=kt>long</span>   <span class=n>write_buffer</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>        <span class=kt>signed</span> <span class=kt>long</span> <span class=n>read_size</span><span class=p>;</span>  <span class=c1>// size of buffer by the client
+</span></span></span><span class=line><span class=cl><span class=c1></span>        <span class=kt>signed</span> <span class=kt>long</span> <span class=n>read_consumed</span><span class=p>;</span>  <span class=c1>// size of buffer by the binder
+</span></span></span><span class=line><span class=cl><span class=c1></span>        <span class=kt>unsigned</span> <span class=kt>long</span>   <span class=n>read_buffer</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>   <span class=p>};</span>
+</span></span></code></pre></td></tr></table></div></div><p>In this structure, we have 2 main divisions: <strong>write and read items</strong>. Write items (<em>write_size</em>, <em>write_consumed</em>, <em>write_buffer</em>) are used to send commands to the binder that it has to execute, meanwhile read items contain transactions from the binder to the clients that they have to execute (them whose <em>‘ioctl’</em> the binder).</p><p>For example, if a client needs to talk to a service, it will send a <em>binder_write_read</em> command with write items filled. When binder replies back, the client will have read items filled back. The same, a service waiting for client interactions, will receive transactions from the Binder with read items.</p><p>While talking about &lsquo;clients&rsquo;, I don’t mean only application clients that need to perform a request in an IPC context. A client, in this context, is a process that <em>ioctl()</em> the binder. For example, a service waiting for transactions from an application is a client of the binder, because it calls <em>ioctl()</em> in order to receive actions.</p><p><img src=https://kiks7.github.io/pers-blog//notes/images/android/2/2.png width=auto alt=img2></p><p>Note that in the case of a client, the <em>ioctl()</em> is performed when it is needed from the application (for example to perform an Inter Process Communication). Meanwhile, the service process has threads waiting in a loop for transactions from the binder.</p><p>Inside these read and write attributes we have more commands, that starts with <em>BC_</em>* and *BR_**. The difference is in the way that the transaction is going, to or from the Binder. BR are commands received FROM the binder, while BC are commands SENT to the binder. To remind me about this difference, I think to them as they are &lsquo;BinderCall&rsquo; (BC) and &lsquo;BinderReceive&rsquo; (BR), but I think is not an official naming convention, so in case just use it as a reminder.</p><p>An example can be the most common <em>TRANSACTION</em>, we can have <em>BC_TRANSACTION</em> and <em>BR_TRANSACTION</em>.</p><p><em>BC_TRANSACTION</em> is used from clients to binder, while <em>BR_TRANSACTION</em> is used from the binder to its clients.</p><a href=#the-servicemanager><h3 id=the-servicemanager><span class=hanchor arialabel=Anchor># </span>The Servicemanager</h3></a><p>As was illustrated in the High Level overview, the servicemanager is responsible for the <strong>location stage</strong>. When a client needs to interact with a service (using the Binder), the Binder will ask the servicemanager for a handle to that service.</p><p>The servicemanager source code is located at <em>frameworks/native/cmds/servicemanager</em>/, where <em>service_manager.c</em> is responsible to initialize itself and handle service related requests. Meanwhile, in <em>binder.c</em> (inside that path, not the kernel module) we find the code responsible to handle the communication with the binder, parsing received requests from it and sending the appropriate replies.</p><p>Servicemanager is started at boot time as defined in <em>/init.rc</em> file. This init file is part of the boot image and is responsible to load system partitions and binaries in the boot process:</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span><span class=lnt>16
+</span><span class=lnt>17
+</span><span class=lnt>18
+</span><span class=lnt>19
+</span><span class=lnt>20
+</span><span class=lnt>21
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-javascript data-lang=javascript><span class=line><span class=cl>    <span class=sr>/.../</span>
+</span></span><span class=line><span class=cl>    <span class=err>#</span> <span class=nx>start</span> <span class=nx>essential</span> <span class=nx>services</span>
+</span></span><span class=line><span class=cl>    <span class=nx>start</span> <span class=nx>logd</span>
+</span></span><span class=line><span class=cl>    <span class=nx>start</span> <span class=nx>servicemanager</span>
+</span></span><span class=line><span class=cl>    <span class=nx>start</span> <span class=nx>hwservicemanager</span>
+</span></span><span class=line><span class=cl>    <span class=nx>start</span> <span class=nx>vndservicemanager</span>
+</span></span><span class=line><span class=cl>    <span class=o>/</span><span class=p>...</span><span class=o>/</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>  <span class=err>#</span> <span class=nx>When</span> <span class=nx>servicemanager</span> <span class=nx>goes</span> <span class=nx>down</span><span class=p>,</span> <span class=nx>restart</span> <span class=nx>all</span> <span class=nx>specified</span> <span class=nx>services</span>
+</span></span><span class=line><span class=cl>    <span class=nx>service</span> <span class=nx>servicemanager</span> <span class=o>/</span><span class=nx>system</span><span class=o>/</span><span class=nx>bin</span><span class=o>/</span><span class=nx>servicemanager</span>
+</span></span><span class=line><span class=cl>    <span class=kr>class</span> <span class=nx>core</span>
+</span></span><span class=line><span class=cl>    <span class=nx>user</span> <span class=nx>system</span>
+</span></span><span class=line><span class=cl>    <span class=nx>group</span> <span class=nx>system</span>
+</span></span><span class=line><span class=cl>    <span class=nx>critical</span>
+</span></span><span class=line><span class=cl>    <span class=nx>onrestart</span> <span class=nx>restart</span> <span class=nx>healthd</span>
+</span></span><span class=line><span class=cl>    <span class=nx>onrestart</span> <span class=nx>restart</span> <span class=nx>zygote</span>
+</span></span><span class=line><span class=cl>    <span class=nx>onrestart</span> <span class=nx>restart</span> <span class=nx>media</span>
+</span></span><span class=line><span class=cl>    <span class=nx>onrestart</span> <span class=nx>restart</span> <span class=nx>surfaceflinger</span>
+</span></span><span class=line><span class=cl>    <span class=nx>onrestart</span> <span class=nx>restart</span> <span class=nx>drm</span>
+</span></span><span class=line><span class=cl>    <span class=nx>onrestart</span> <span class=nx>restart</span> <span class=nx>perfhub</span>
+</span></span><span class=line><span class=cl>    <span class=o>/</span><span class=p>...</span><span class=o>/</span>
+</span></span></code></pre></td></tr></table></div></div><p>When the service manager is started, the <em>main</em> function obtains an handle to the binder (&rsquo;<em>/dev/binder</em>&rsquo;) and successively call <em>binder_become_context_manager()</em>, that will <em>ioctl</em> the binder with the <em>BINDER_SET_CONTEXT_MGR</em> command, in order to declare itself as the context manager.</p><p>The <strong>context manager</strong> is crucial for the binder as it serves as the service locator. When the binder needs to locate a service, it asks for a handle to its context manager.Once the registration with the binder it&rsquo;s done, it calls <em>binder_loop</em> (from <em>binder.c</em>) with a callback function parameter. This callback (<em>svcmgr_handler</em>) will be responsible to handle service related requests.</p><p>The <em>binder_loop</em> assignment, as the name says, is to start an infinite loop that will receive requests from the binder. Before this loop, it will call the binder with BC_ENTER_LOOPER, to inform the binder that a specific thread is joining the thread pool. The <strong>thread pool</strong> is a group of threads that are waiting for incoming messages from the Binder, usually services have multiple threads in order to handle multiple requests. By the way, the service manager is a single-threaded service, so this is the first and unique thread.</p><p>After this notification, the servicemanager starts its infinite loop that continuously asks the binder (using <em>ioctl</em>) waiting for actions. This is managed using the <em>BINDER_WRITE_READ</em> command (to the binder) with a <em>binder_write_read</em> structure that will be filled by the binder in its <em>read_</em>* items, this is the structure:</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt>1
+</span><span class=lnt>2
+</span><span class=lnt>3
+</span><span class=lnt>4
+</span><span class=lnt>5
+</span><span class=lnt>6
+</span><span class=lnt>7
+</span><span class=lnt>8
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-cpp data-lang=cpp><span class=line><span class=cl><span class=k>struct</span> <span class=nc>binder_write_read</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>        <span class=kt>signed</span> <span class=kt>long</span> <span class=n>write_size</span><span class=p>;</span>  <span class=c1>// size of buffer by the client
+</span></span></span><span class=line><span class=cl><span class=c1></span>        <span class=kt>signed</span> <span class=kt>long</span> <span class=n>write_consumed</span><span class=p>;</span>  <span class=c1>// size of buffer by the binder
+</span></span></span><span class=line><span class=cl><span class=c1></span>        <span class=kt>unsigned</span> <span class=kt>long</span>   <span class=n>write_buffer</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>        <span class=kt>signed</span> <span class=kt>long</span> <span class=n>read_size</span><span class=p>;</span>  <span class=c1>// size of buffer by the client
+</span></span></span><span class=line><span class=cl><span class=c1></span>        <span class=kt>signed</span> <span class=kt>long</span> <span class=n>read_consumed</span><span class=p>;</span>  <span class=c1>// size of buffer by the binder
+</span></span></span><span class=line><span class=cl><span class=c1></span>        <span class=kt>unsigned</span> <span class=kt>long</span>   <span class=n>read_buffer</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>   <span class=p>};</span>
+</span></span></code></pre></td></tr></table></div></div><p>When the binder needs the service manager to perform an action (e.g. getting a handle to a service) it will return to the <em>binder_loop()</em> a <em>binder_write_read</em> structure with <em>read_buffer</em> filled with the requested transaction (and in <em>read_consumed</em> its actual size). These two values are passed over the <em>binder_parse()</em> function that will start to ‘deserialize’ the transaction <em>req</em>uest:</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-cpp data-lang=cpp><span class=line><span class=cl>  <span class=c1>// .. /
+</span></span></span><span class=line><span class=cl><span class=c1></span>    <span class=n>uintptr_t</span> <span class=n>end</span> <span class=o>=</span> <span class=n>ptr</span> <span class=o>+</span> <span class=p>(</span><span class=n>uintptr_t</span><span class=p>)</span> <span class=n>size</span><span class=p>;</span> <span class=c1>// end calculated using the bwr.read_consumed
+</span></span></span><span class=line><span class=cl><span class=c1></span>    <span class=k>while</span> <span class=p>(</span><span class=n>ptr</span> <span class=o>&lt;</span> <span class=n>end</span><span class=p>)</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>        <span class=kt>uint32_t</span> <span class=n>cmd</span> <span class=o>=</span> <span class=o>*</span><span class=p>(</span><span class=kt>uint32_t</span> <span class=o>*</span><span class=p>)</span> <span class=n>ptr</span><span class=p>;</span> <span class=c1>// the command is read from the buffer
+</span></span></span><span class=line><span class=cl><span class=c1></span>        <span class=n>ptr</span> <span class=o>+=</span> <span class=k>sizeof</span><span class=p>(</span><span class=kt>uint32_t</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>    <span class=c1>// switch case on the received command
+</span></span></span><span class=line><span class=cl><span class=c1></span>  <span class=k>switch</span><span class=p>(</span><span class=n>cmd</span><span class=p>)</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>    <span class=c1>// BR_NOOP is a command
+</span></span></span><span class=line><span class=cl><span class=c1></span>        <span class=k>case</span> <span class=nl>BR_NOOP</span><span class=p>:</span>
+</span></span><span class=line><span class=cl>            <span class=k>break</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=c1>//../
+</span></span></span></code></pre></td></tr></table></div></div><p>The first 32 bits of the <em>bwr.read_buffer</em> contains the command to be executed (<em>CMD</em>).There is a huge list of handled commands: <em>BR_NOOP, BR_TRANSACTION_COMPLETE</em>, <em>BR_INCREFS - BR_ACQUIRE - BR_RELEASE, BR_DECREFS</em>, <em>BR_DEAD_BINDER</em>, <em>BR_FAILED_REPLY - BR_DEAD_REPLY</em>, <em>BR_TRANSACTION</em>, <em>BR_REPLY.</em></p><p>You can find a lot more BR_* commands, but these are the only ones handled by the servicemanager. For example, a normal service can receive a <em>SPWAN_LOOPER</em> command from the binder, that requests the service to spawn a new thread in order to handle more requests. We said that the servicemanager is single thread, so there is no sense to receive this type of requests, so they are not handled. We will better deepen on these commands that are used by other services in <em>IPCThreadState.cpp</em> in next articles.</p><p>After having extracted the command from the <em>binder_read_write</em> structure, this one is inserted in a switch case where above commands are managed. The most interesting one is the <em>BR_TRANSACTION</em>, because it means that the binder needs to retrieve a service handle or register a new service.</p><a href=#br_transaction><h3 id=br_transaction><span class=hanchor arialabel=Anchor># </span>BR_TRANSACTION</h3></a><p>Following the source code, we can encounter and deppen some essentials structures, such as the <em>binder_transaction</em> data that is casted from <em>bwr.read_buffer</em> (now referenced in the local function as <em>ptr</em>) + <em>sizeof(uint32_t)</em>, that’s because the first 32 bits are dedicated to the command constant.</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt>1
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-cpp data-lang=cpp><span class=line><span class=cl><span class=k>struct</span> <span class=nc>binder_transaction_data</span> <span class=o>*</span><span class=n>txn</span> <span class=o>=</span> <span class=p>(</span><span class=k>struct</span> <span class=nc>binder_transaction_data</span> <span class=o>*</span><span class=p>)</span> <span class=n>ptr</span><span class=p>;</span>
+</span></span></code></pre></td></tr></table></div></div><p><img src=https://kiks7.github.io/pers-blog//notes/images/android/2/3.png width=auto alt=img3></p><p>This is the <em>binder_transaction_data</em> structure:</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span><span class=lnt>16
+</span><span class=lnt>17
+</span><span class=lnt>18
+</span><span class=lnt>19
+</span><span class=lnt>20
+</span><span class=lnt>21
+</span><span class=lnt>22
+</span><span class=lnt>23
+</span><span class=lnt>24
+</span><span class=lnt>25
+</span><span class=lnt>26
+</span><span class=lnt>27
+</span><span class=lnt>28
+</span><span class=lnt>29
+</span><span class=lnt>30
+</span><span class=lnt>31
+</span><span class=lnt>32
+</span><span class=lnt>33
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-cpp data-lang=cpp><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=c1>//https://android.googlesource.com/kernel/msm/+/android-6.0.1_r0.74/drivers/staging/android/uapi/binder.h
+</span></span></span><span class=line><span class=cl><span class=c1></span><span class=k>struct</span> <span class=nc>binder_transaction_data</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>  <span class=cm>/* The first two are only used for bcTRANSACTION and brTRANSACTION,
+</span></span></span><span class=line><span class=cl><span class=cm>   * identifying the target and contents of the transaction.
+</span></span></span><span class=line><span class=cl><span class=cm>   */</span>
+</span></span><span class=line><span class=cl>  <span class=k>union</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>    <span class=n>__u32</span> <span class=n>handle</span><span class=p>;</span> <span class=cm>/* target descriptor of command transaction */</span>
+</span></span><span class=line><span class=cl>    <span class=n>binder_uintptr_t</span> <span class=n>ptr</span><span class=p>;</span> <span class=cm>/* target descriptor of return transaction */</span>
+</span></span><span class=line><span class=cl>                <span class=c1>// in BR_TRANSACTION this must be BINDER_SERVICE_MANAGER or the service_manager return -1
+</span></span></span><span class=line><span class=cl><span class=c1></span>  <span class=p>}</span> <span class=n>target</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>  <span class=n>binder_uintptr_t</span>  <span class=n>cookie</span><span class=p>;</span> <span class=cm>/* target object cookie */</span>
+</span></span><span class=line><span class=cl>  <span class=n>__u32</span>   <span class=n>code</span><span class=p>;</span>   <span class=cm>/* transaction command. */</span> <span class=c1>// e.g. SVC_MGR_GET_SERVICE
+</span></span></span><span class=line><span class=cl><span class=c1></span>  <span class=cm>/* General information about the transaction. */</span>
+</span></span><span class=line><span class=cl>  <span class=n>__u32</span>         <span class=n>flags</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>  <span class=n>pid_t</span>   <span class=n>sender_pid</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>  <span class=n>uid_t</span>   <span class=n>sender_euid</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>  <span class=n>binder_size_t</span> <span class=n>data_size</span><span class=p>;</span>  <span class=cm>/* number of bytes of data */</span>
+</span></span><span class=line><span class=cl>  <span class=n>binder_size_t</span> <span class=n>offsets_size</span><span class=p>;</span> <span class=cm>/* number of bytes of offsets */</span>
+</span></span><span class=line><span class=cl>  <span class=cm>/* If this transaction is inline, the data immediately
+</span></span></span><span class=line><span class=cl><span class=cm>   * follows here; otherwise, it ends with a pointer to
+</span></span></span><span class=line><span class=cl><span class=cm>   * the data buffer.
+</span></span></span><span class=line><span class=cl><span class=cm>   */</span>
+</span></span><span class=line><span class=cl>  <span class=k>union</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>    <span class=k>struct</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>      <span class=cm>/* transaction data */</span>
+</span></span><span class=line><span class=cl>      <span class=n>binder_uintptr_t</span>  <span class=n>buffer</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>      <span class=cm>/* offsets from buffer to flat_binder_object structs */</span>
+</span></span><span class=line><span class=cl>      <span class=n>binder_uintptr_t</span>  <span class=n>offsets</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=p>}</span> <span class=n>ptr</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=n>__u8</span>  <span class=n>buf</span><span class=p>[</span><span class=mi>8</span><span class=p>];</span>
+</span></span><span class=line><span class=cl>  <span class=p>}</span> <span class=n>data</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=p>};</span>
+</span></span></code></pre></td></tr></table></div></div><p>This structure contains necessary information about the incoming request, such as the sender <em>PID</em> and <em>UID</em> to check permissions for a service, the <em>target descriptor</em> and the <em>transaction</em> command for the service manager (for example <em>PING_TRANSACTION</em> or <em>SVC_MGR_CHECK_SERVICE</em>).</p><p>This <em>binder_transaction_data</em> structure initializes a new <em>binder_io</em> (binder I/O) structure using <em>bio_init_from_txn()</em>, that will copy data and offsets from binder_transaction_data to this new one.</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-cpp data-lang=cpp><span class=line><span class=cl><span class=k>struct</span> <span class=nc>binder_io</span>
+</span></span><span class=line><span class=cl><span class=p>{</span>
+</span></span><span class=line><span class=cl>    <span class=kt>char</span> <span class=o>*</span><span class=n>data</span><span class=p>;</span>            <span class=cm>/* pointer to read/write from */</span>
+</span></span><span class=line><span class=cl>    <span class=n>binder_size_t</span> <span class=o>*</span><span class=n>offs</span><span class=p>;</span>   <span class=cm>/* array of offsets */</span>
+</span></span><span class=line><span class=cl>    <span class=n>size_t</span> <span class=n>data_avail</span><span class=p>;</span>     <span class=cm>/* bytes available in data buffer */</span>
+</span></span><span class=line><span class=cl>    <span class=n>size_t</span> <span class=n>offs_avail</span><span class=p>;</span>     <span class=cm>/* entries available in offsets array */</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>    <span class=kt>char</span> <span class=o>*</span><span class=n>data0</span><span class=p>;</span>           <span class=cm>/* start of data buffer */</span>
+</span></span><span class=line><span class=cl>    <span class=n>binder_size_t</span> <span class=o>*</span><span class=n>offs0</span><span class=p>;</span>  <span class=cm>/* start of offsets buffer */</span>
+</span></span><span class=line><span class=cl>    <span class=kt>uint32_t</span> <span class=n>flags</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=kt>uint32_t</span> <span class=n>unused</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=p>};</span>
+</span></span></code></pre></td></tr></table></div></div><p><img src=https://kiks7.github.io/pers-blog//notes/images/android/2/4.png width=auto alt=img4></p><p><em>bio_*</em> functions refers to operations on the <em>binder_io</em> structure, here is an example on how the that structure is filled from <em>binder_transaction_data</em>:</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt>1
+</span><span class=lnt>2
+</span><span class=lnt>3
+</span><span class=lnt>4
+</span><span class=lnt>5
+</span><span class=lnt>6
+</span><span class=lnt>7
+</span><span class=lnt>8
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-cpp data-lang=cpp><span class=line><span class=cl><span class=kt>void</span> <span class=nf>bio_init_from_txn</span><span class=p>(</span><span class=k>struct</span> <span class=nc>binder_io</span> <span class=o>*</span><span class=n>bio</span><span class=p>,</span> <span class=k>struct</span> <span class=nc>binder_transaction_data</span> <span class=o>*</span><span class=n>txn</span><span class=p>)</span>
+</span></span><span class=line><span class=cl><span class=p>{</span>
+</span></span><span class=line><span class=cl>    <span class=n>bio</span><span class=o>-&gt;</span><span class=n>data</span> <span class=o>=</span> <span class=n>bio</span><span class=o>-&gt;</span><span class=n>data0</span> <span class=o>=</span> <span class=p>(</span><span class=kt>char</span> <span class=o>*</span><span class=p>)(</span><span class=n>intptr_t</span><span class=p>)</span><span class=n>txn</span><span class=o>-&gt;</span><span class=n>data</span><span class=p>.</span><span class=n>ptr</span><span class=p>.</span><span class=n>buffer</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=n>bio</span><span class=o>-&gt;</span><span class=n>offs</span> <span class=o>=</span> <span class=n>bio</span><span class=o>-&gt;</span><span class=n>offs0</span> <span class=o>=</span> <span class=p>(</span><span class=n>binder_size_t</span> <span class=o>*</span><span class=p>)(</span><span class=n>intptr_t</span><span class=p>)</span><span class=n>txn</span><span class=o>-&gt;</span><span class=n>data</span><span class=p>.</span><span class=n>ptr</span><span class=p>.</span><span class=n>offsets</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=n>bio</span><span class=o>-&gt;</span><span class=n>data_avail</span> <span class=o>=</span> <span class=n>txn</span><span class=o>-&gt;</span><span class=n>data_size</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=n>bio</span><span class=o>-&gt;</span><span class=n>offs_avail</span> <span class=o>=</span> <span class=n>txn</span><span class=o>-&gt;</span><span class=n>offsets_size</span> <span class=o>/</span> <span class=k>sizeof</span><span class=p>(</span><span class=n>size_t</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>    <span class=n>bio</span><span class=o>-&gt;</span><span class=n>flags</span> <span class=o>=</span> <span class=n>BIO_F_SHARED</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span></code></pre></td></tr></table></div></div><p>As we can see, buffer and offsets (including their size) of <em>binder_transaction_data</em> are filled in their relative <em>binder_io</em> structure, and both structures are passed over the service manager callback function (the <em>svcmgr_handler()</em> function defined in <em>service_manager.c</em> while calling <em>binder_loop()</em>):</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt>1
+</span><span class=lnt>2
+</span><span class=lnt>3
+</span><span class=lnt>4
+</span><span class=lnt>5
+</span><span class=lnt>6
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-cpp data-lang=cpp><span class=line><span class=cl><span class=n>res</span> <span class=o>=</span> <span class=n>func</span><span class=p>(</span><span class=n>bs</span><span class=p>,</span> <span class=n>txn</span><span class=p>,</span> <span class=o>&amp;</span><span class=n>msg</span><span class=p>,</span> <span class=n>reply</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>  <span class=c1>// func  -&gt; binder_handle defined in service_manager.c - binder_loop(bs, svcmgr_handler);
+</span></span></span><span class=line><span class=cl><span class=c1></span>  <span class=c1>// bs    -&gt; binder_state
+</span></span></span><span class=line><span class=cl><span class=c1></span>  <span class=c1>// txn   -&gt; binder_transaction_data
+</span></span></span><span class=line><span class=cl><span class=c1></span>  <span class=c1>// msg   -&gt; binder_io initialized from binder_transaction_data
+</span></span></span><span class=line><span class=cl><span class=c1></span>  <span class=c1>// reply -&gt; an empty binder_io that will contain the reply from the service manager
+</span></span></span></code></pre></td></tr></table></div></div><p>Now, the <em>BR_TRANSACTION</em> is inside the <em>svcmgr_handler()</em>.</p><p>The <em>binder_transaction_data.ptr</em> must contain <em>BINDER_SERVICE_MANAGER</em> in order to continue (otherwise return -1) and <em>binder_transaction_data.code</em> contains the service manager command. These service commands (dispatched in a switch condition) can be:</p><p>PING_TRANSACTION: It is a ping to the servicemanager, so return 0.
+SVC_MGR_GET_SERVICE - SVC_MGR_CHECK_SERVICE: Get a handle to a service. They follow the same switch path
+SVC_MGR_ADD_SERVICE - Add a new service
+SVC_MGR_LIST_SERVICES - List all available services</p><p>Let&rsquo;s start to dig into SVC_MGR_GET_SERVICE.</p><a href=#svc_mgr_get_service><h3 id=svc_mgr_get_service><span class=hanchor arialabel=Anchor># </span>SVC_MGR_GET_SERVICE</h3></a><p>This service command occurs when the binder needs a service handle based on a service name (requested from a client).</p><p>The service name is taken from the <em>binder_io</em> structure (referred as <code>*msg*</code> in the source) using <em>bio_get_string16()</em>.</p><p>We have different functions as <em>bio_get_</em>* (<em>bio_get_uint32</em>, <em>bio_get_string16</em>, <em>_bio_get_obj</em>, <em>bio_get_ref</em>). They are all primitives of <em>bio_get()</em> that retrieves the requested data type from (<em>binder_io</em>)<em>bio->data</em>. The same for bio_put_* functions in order to insert data in a <em>binder_io</em> structure while replying to a command.</p><p><em>do_find_service()</em> is called with the service name and the <em>caller UID</em> and <em>PID</em> from the <em>binder_transaction_data</em> structure and immediately call <em>find_svc()</em>, that will iterate its service singularly linked list and return an <code>svcinfo</code> structure if match the requested service name:</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt>1
+</span><span class=lnt>2
+</span><span class=lnt>3
+</span><span class=lnt>4
+</span><span class=lnt>5
+</span><span class=lnt>6
+</span><span class=lnt>7
+</span><span class=lnt>8
+</span><span class=lnt>9
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-cpp data-lang=cpp><span class=line><span class=cl><span class=p>{</span>
+</span></span><span class=line><span class=cl>    <span class=k>struct</span> <span class=nc>svcinfo</span> <span class=o>*</span><span class=n>next</span><span class=p>;</span> <span class=c1>// pointer to the next service
+</span></span></span><span class=line><span class=cl><span class=c1></span>    <span class=kt>uint32_t</span> <span class=n>handle</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=k>struct</span> <span class=nc>binder_death</span> <span class=n>death</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=kt>int</span> <span class=n>allow_isolated</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=kt>uint32_t</span> <span class=n>dumpsys_priority</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=n>size_t</span> <span class=n>len</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=kt>uint16_t</span> <span class=n>name</span><span class=p>[</span><span class=mi>0</span><span class=p>];</span>
+</span></span><span class=line><span class=cl><span class=p>}</span> <span class=n>svcinfo</span><span class=p>;</span>
+</span></span></code></pre></td></tr></table></div></div><p><img src=https://kiks7.github.io/pers-blog//notes/images/android/2/5.png width=auto alt=img6></p><p>The svcinfo structure mainly contains information about the target service.</p><p>If the service matches the <em>svcinfo.name</em> item, the structure is returned to the <em>do_find_service()</em> function, that is responsible to perform extra checks.</p><p>The first check is about process isolation. As we were talking in the first part of this series, some services are not allowed to be called from isolated apps (such as. web browsers):</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt>1
+</span><span class=lnt>2
+</span><span class=lnt>3
+</span><span class=lnt>4
+</span><span class=lnt>5
+</span><span class=lnt>6
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-cpp data-lang=cpp><span class=line><span class=cl>  <span class=k>if</span> <span class=p>(</span><span class=o>!</span><span class=n>si</span><span class=o>-&gt;</span><span class=n>allow_isolated</span><span class=p>)</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>        <span class=n>uid_t</span> <span class=n>appid</span> <span class=o>=</span> <span class=n>uid</span> <span class=o>%</span> <span class=n>AID_USER</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>        <span class=k>if</span> <span class=p>(</span><span class=n>appid</span> <span class=o>&gt;=</span> <span class=n>AID_ISOLATED_START</span> <span class=o>&amp;&amp;</span> <span class=n>appid</span> <span class=o>&lt;=</span> <span class=n>AID_ISOLATED_END</span><span class=p>)</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>            <span class=k>return</span> <span class=mi>0</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>        <span class=p>}</span>
+</span></span><span class=line><span class=cl>    <span class=p>}</span>
+</span></span></code></pre></td></tr></table></div></div><p>In this piece of code, the UID retrieved from <em>binder_transaction_data</em> struct (coming from the binder) is verified against AID_ISOLATED_START and AID_ISOLATED_END. These UIDs (a range from 99000 to 99999) are associated with isolated processes and they can interact only with services with svcinfo.allow_isolated set to True.</p><p>If this check is passed, a SELINUX permission checks if the sender is allowed to retrieve the service, and the handler is returned to the main switch case in the service handler. The returned handle will be put inside the binder_io reply using <code>bio_put_ref()</code> and return 0, meaning everything is fine. Later on we will see how the message is sent back to the binder.</p><a href=#svc_mgr_list_services><h3 id=svc_mgr_list_services><span class=hanchor arialabel=Anchor># </span>SVC_MGR_LIST_SERVICES</h3></a><p>We can also list available services with the <em>SVC_MGR_LIST_SERVICES</em> command, that will iterate through the service list (svclist) and put the result in the <em>binder_io</em> reply message using <em>bio_put_string16()</em>. There is also an interesting condition on <em>dumpsys_priority</em>. The priority, that can be defined while registering a new service, can be of three levels: CRITICAL, HIGH and NORMAL. While listing all services, we can choose to dump only services with a specific priority (specified in the <em>svclist</em> structure).</p><p>For example, using the <em>dumpsys</em> utility in Android, we can specify the desired level:</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span><span class=lnt>16
+</span><span class=lnt>17
+</span><span class=lnt>18
+</span><span class=lnt>19
+</span><span class=lnt>20
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-fallback data-lang=fallback><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>adb &gt; `dumpsys -l --priority CRITICAL`
+</span></span><span class=line><span class=cl>Currently running services:
+</span></span><span class=line><span class=cl>  SurfaceFlinger
+</span></span><span class=line><span class=cl>  activity
+</span></span><span class=line><span class=cl>  cpuinfo
+</span></span><span class=line><span class=cl>  input
+</span></span><span class=line><span class=cl>  notification
+</span></span><span class=line><span class=cl>  window
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>`dumpsys -l --priority HIGH`
+</span></span><span class=line><span class=cl>Currently running services:
+</span></span><span class=line><span class=cl>  connectivity
+</span></span><span class=line><span class=cl>  meminfo
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>adb &gt; `dumpsys -l --priority NORMAL`
+</span></span><span class=line><span class=cl>Currently running services:
+</span></span><span class=line><span class=cl>  activity
+</span></span><span class=line><span class=cl>  connectivity
+</span></span><span class=line><span class=cl>  notification
+</span></span></code></pre></td></tr></table></div></div><a href=#svc_mgr_add_service><h3 id=svc_mgr_add_service><span class=hanchor arialabel=Anchor># </span>SVC_MGR_ADD_SERVICE</h3></a><p>If the requested command from the binder is <em>SVC_MGR_ADD_SERVICE</em>, the binder is proxying a client request to register a new service. Details about the new service are taken from the <em>binder_io</em> message (<em>binder_io->data</em>). Service attributes are the service name, the priority level (<em>dumpsys_priority</em>), the handle and if it is permitted to interact with the service from isolated apps (<em>allow_isolation</em>). The function <em>do_add_service()</em> is called with these information and the caller UID and PID from the <em>binder_transaction_data</em> message.</p><p>This function is responsible to check for caller permissions (the process that requests the registration), starting by checking its UID to avoid the creation of a new service from standard applications. This is accomplished by checking if the AID_APP is over 10000.</p><p>In Android, installed applications start from UID 10000, so the condition is aimed to prevent an user application from installing a new service (or override an existing one). That also means that the privileged <em>system</em> user (with UID 1000) can register a new service.</p><p>If this condition is satisfied, a SELINUX check controls that the caller process has &lsquo;add&rsquo; permissions. If the caller process has rights to register a new service, <em>find_svc()</em> checks if the service name has been already registered. If it already exists, the service handle is overridden with the new one, and <em>svcinfo_death()</em> called.</p><p>Before going in depth with this function behaviour, let&rsquo;s introduce the scenario where the service does not exist:</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-cpp data-lang=cpp><span class=line><span class=cl><span class=k>struct</span> <span class=nc>svcinfo</span> <span class=o>*</span><span class=n>si</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=o>/</span><span class=p>..</span><span class=o>/</span>
+</span></span><span class=line><span class=cl>      <span class=n>si</span><span class=o>-&gt;</span><span class=n>handle</span> <span class=o>=</span> <span class=n>handle</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>        <span class=n>si</span><span class=o>-&gt;</span><span class=n>len</span> <span class=o>=</span> <span class=n>len</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>        <span class=n>memcpy</span><span class=p>(</span><span class=n>si</span><span class=o>-&gt;</span><span class=n>name</span><span class=p>,</span> <span class=n>s</span><span class=p>,</span> <span class=p>(</span><span class=n>len</span> <span class=o>+</span> <span class=mi>1</span><span class=p>)</span> <span class=o>*</span> <span class=k>sizeof</span><span class=p>(</span><span class=kt>uint16_t</span><span class=p>));</span>
+</span></span><span class=line><span class=cl>        <span class=n>si</span><span class=o>-&gt;</span><span class=n>name</span><span class=p>[</span><span class=n>len</span><span class=p>]</span> <span class=o>=</span> <span class=sc>&#39;\0&#39;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>        <span class=n>si</span><span class=o>-&gt;</span><span class=n>death</span><span class=p>.</span><span class=n>func</span> <span class=o>=</span> <span class=p>(</span><span class=kt>void</span><span class=o>*</span><span class=p>)</span> <span class=n>svcinfo_death</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>        <span class=n>si</span><span class=o>-&gt;</span><span class=n>death</span><span class=p>.</span><span class=n>ptr</span> <span class=o>=</span> <span class=n>si</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>        <span class=n>si</span><span class=o>-&gt;</span><span class=n>allow_isolated</span> <span class=o>=</span> <span class=n>allow_isolated</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>        <span class=n>si</span><span class=o>-&gt;</span><span class=n>dumpsys_priority</span> <span class=o>=</span> <span class=n>dumpsys_priority</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>        <span class=n>si</span><span class=o>-&gt;</span><span class=n>next</span> <span class=o>=</span> <span class=n>svclist</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>        <span class=n>svclist</span> <span class=o>=</span> <span class=n>si</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>        <span class=o>/</span><span class=p>..</span><span class=o>/</span>
+</span></span></code></pre></td></tr></table></div></div><p><img src=https://kiks7.github.io/pers-blog//notes/images/android/2/6.png width=auto alt=img6></p><p>The code is pretty self-explanatory, it is populating the new structure with input values and updates its service list with <code>*si->next = svclist*</code> and <code>*svclist = si*</code> (linked list behavior). And here, we are back with the death that we were talking some lines above.</p><p>The <em>binder_death</em> structure, part of the <em>svclist</em>, contains two items, func and ptr. The <em>ptr</em> is a pointer to its service structure (itself), and the <em>func</em> is a function pointer pointing to <em>svcinfo_death()</em>.</p><p>This death function sets the service handle to 0 and informs the binder that the service is dead using a <em>BC_RELEASE</em> with the service handle as parameter, so the binder can release this reference. The binder can use this information to also inform associated clients that the service is down using <em>BR_BINDER_DOWN</em>, if clients requested for it (by sending a <em>BC_REQUEST_DEATH_NOTIFICATION</em> for the service to the binder).</p><p>On the other side, when a service is registered or overridden, a <em>BC_ACQUIRE</em> with the service handle as parameter is sent to the binder, also with the BC_REQUEST_DEATH_NOTIFICATION in case the service goes down (for example if its crashes).</p><a href=#comeback-to-the-service-handler><h3 id=comeback-to-the-service-handler><span class=hanchor arialabel=Anchor># </span>Comeback to the service handler</h3></a><p>When one of these described commands are executed, the Binder usually expects a reply back. While handling commands, <em>SVC_MGR_ADD_SERVICE</em> puts 0 in reply message if success (bio_put_uint32(reply, 0);) or simply return -1 if something fail, and the binder will receive an empty reply (that was previously initialized using <em>bio_init())</em>.</p><p><em>SVC_MGR_GET_SERVICE</em> and <em>SVC_MGR_LIST_SERVICES</em> act in the same way if something goes wrong (-1 and empty reply packet), or they will return 0 to the function after have filled the reply packet with necessary values (handle in case of get service, and the list of services for the service list command).</p><p>When the service handler returns, the execution flow comes back inside the <code>*binder_parse()*</code> function (in the <em>BR_TRANSACTION</em> switch case) with the reply packet and the result value of the servicemanager handler. Based on the <em>binder_transaction_data.flags</em>, if <em>TF_ONE_WAY</em> is set, means that is an asynchronous call, the binder does not expect a reply, so the servicemanager will inform the binder to free the <em>binder_transaction_data.ptr.buffer</em> with a <em>BC_FREE_BUFFER</em> command (internally using the <em>binder_free_buffer()</em> function). If it&rsquo;s not an asynchronous call, it will send the reply back to the binder using <em>binder_send_reply()</em> that will send a <em>BC_REPLY</em> command.</p><p>Also, as you could notice, all these functions (<em>binder_send_reply</em>, <em>binder_free_buffer</em>, ..) are meant to be easily called inside the source code, and will perform all setup operations to interact with the binder with the final <em>ioctl()</em>. Let&rsquo;s take a simple example of the binder_free_buffer mentioned before.</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-cpp data-lang=cpp><span class=line><span class=cl><span class=kt>void</span> <span class=nf>binder_free_buffer</span><span class=p>(</span><span class=k>struct</span> <span class=nc>binder_state</span> <span class=o>*</span><span class=n>bs</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>                        <span class=n>binder_uintptr_t</span> <span class=n>buffer_to_free</span><span class=p>)</span>
+</span></span><span class=line><span class=cl><span class=p>{</span>
+</span></span><span class=line><span class=cl>    <span class=k>struct</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>        <span class=kt>uint32_t</span> <span class=n>cmd_free</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>        <span class=n>binder_uintptr_t</span> <span class=n>buffer</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=p>}</span> <span class=n>__attribute__</span><span class=p>((</span><span class=n>packed</span><span class=p>))</span> <span class=n>data</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>    <span class=n>data</span><span class=p>.</span><span class=n>cmd_free</span> <span class=o>=</span> <span class=n>BC_FREE_BUFFER</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=n>data</span><span class=p>.</span><span class=n>buffer</span> <span class=o>=</span> <span class=n>buffer_to_free</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=n>binder_write</span><span class=p>(</span><span class=n>bs</span><span class=p>,</span> <span class=o>&amp;</span><span class=n>data</span><span class=p>,</span> <span class=k>sizeof</span><span class=p>(</span><span class=n>data</span><span class=p>));</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span></code></pre></td></tr></table></div></div><p>This function, previously used by the service manager handler to inform the binder to free a buffer, will setup, using a <em>data</em> structure, a <em>cmd_free</em> with <em>BC_FREE_BUFFER</em> on it and the buffer to free, then call <em>binder_write()</em>. <em>binder_write</em> is the final function that will put received input inside a binder_write_read.write_buffer structure before ioctl the binder with the <em>BINDER_WRITE_READ</em> command:</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span><span class=lnt>16
+</span><span class=lnt>17
+</span><span class=lnt>18
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-cpp data-lang=cpp><span class=line><span class=cl><span class=kt>int</span> <span class=nf>binder_write</span><span class=p>(</span><span class=k>struct</span> <span class=nc>binder_state</span> <span class=o>*</span><span class=n>bs</span><span class=p>,</span> <span class=kt>void</span> <span class=o>*</span><span class=n>data</span><span class=p>,</span> <span class=n>size_t</span> <span class=n>len</span><span class=p>)</span>
+</span></span><span class=line><span class=cl><span class=p>{</span>
+</span></span><span class=line><span class=cl>    <span class=k>struct</span> <span class=nc>binder_write_read</span> <span class=n>bwr</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=kt>int</span> <span class=n>res</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>    <span class=n>bwr</span><span class=p>.</span><span class=n>write_size</span> <span class=o>=</span> <span class=n>len</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=n>bwr</span><span class=p>.</span><span class=n>write_consumed</span> <span class=o>=</span> <span class=mi>0</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=n>bwr</span><span class=p>.</span><span class=n>write_buffer</span> <span class=o>=</span> <span class=p>(</span><span class=n>uintptr_t</span><span class=p>)</span> <span class=n>data</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=n>bwr</span><span class=p>.</span><span class=n>read_size</span> <span class=o>=</span> <span class=mi>0</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=n>bwr</span><span class=p>.</span><span class=n>read_consumed</span> <span class=o>=</span> <span class=mi>0</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=n>bwr</span><span class=p>.</span><span class=n>read_buffer</span> <span class=o>=</span> <span class=mi>0</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=n>res</span> <span class=o>=</span> <span class=n>ioctl</span><span class=p>(</span><span class=n>bs</span><span class=o>-&gt;</span><span class=n>fd</span><span class=p>,</span> <span class=n>BINDER_WRITE_READ</span><span class=p>,</span> <span class=o>&amp;</span><span class=n>bwr</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>    <span class=k>if</span> <span class=p>(</span><span class=n>res</span> <span class=o>&lt;</span> <span class=mi>0</span><span class=p>)</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>        <span class=n>fprintf</span><span class=p>(</span><span class=n>stderr</span><span class=p>,</span><span class=s>&#34;binder_write: ioctl failed (%s)</span><span class=se>\n</span><span class=s>&#34;</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>                <span class=n>strerror</span><span class=p>(</span><span class=n>errno</span><span class=p>));</span>
+</span></span><span class=line><span class=cl>    <span class=p>}</span>
+</span></span><span class=line><span class=cl>    <span class=k>return</span> <span class=n>res</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span></code></pre></td></tr></table></div></div><p>We can note the differences on the usage of the <em>binder_write_read</em> structure now and before.When we were expecting an action from the binder (in the <em>binder_loop</em>) the received action was inside the <em>read_buffer</em> (that contains the BR_* command). Now, the binder needs to perform actions based on our input, so we are using the <em>write_buffer</em> (with a a BC_* command).</p><p>Said that, we can come back inside the <em>binder_send_reply()</em>, that is responsible to send the reply of performed actions to the Binder. This is the source code:</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span><span class=lnt>16
+</span><span class=lnt>17
+</span><span class=lnt>18
+</span><span class=lnt>19
+</span><span class=lnt>20
+</span><span class=lnt>21
+</span><span class=lnt>22
+</span><span class=lnt>23
+</span><span class=lnt>24
+</span><span class=lnt>25
+</span><span class=lnt>26
+</span><span class=lnt>27
+</span><span class=lnt>28
+</span><span class=lnt>29
+</span><span class=lnt>30
+</span><span class=lnt>31
+</span><span class=lnt>32
+</span><span class=lnt>33
+</span><span class=lnt>34
+</span><span class=lnt>35
+</span><span class=lnt>36
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-fallback data-lang=fallback><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>void binder_send_reply(struct binder_state *bs,
+</span></span><span class=line><span class=cl>                       struct binder_io *reply,
+</span></span><span class=line><span class=cl>                       binder_uintptr_t buffer_to_free,
+</span></span><span class=line><span class=cl>                       int status)
+</span></span><span class=line><span class=cl>{
+</span></span><span class=line><span class=cl>    struct {
+</span></span><span class=line><span class=cl>        uint32_t cmd_free;
+</span></span><span class=line><span class=cl>        binder_uintptr_t buffer;
+</span></span><span class=line><span class=cl>        uint32_t cmd_reply;
+</span></span><span class=line><span class=cl>        struct binder_transaction_data txn;
+</span></span><span class=line><span class=cl>    } __attribute__((packed)) data;
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>    data.cmd_free = BC_FREE_BUFFER;
+</span></span><span class=line><span class=cl>    data.buffer = buffer_to_free;
+</span></span><span class=line><span class=cl>    data.cmd_reply = BC_REPLY;
+</span></span><span class=line><span class=cl>    data.txn.target.ptr = 0;
+</span></span><span class=line><span class=cl>    data.txn.cookie = 0;
+</span></span><span class=line><span class=cl>    data.txn.code = 0;
+</span></span><span class=line><span class=cl>    if (status) {
+</span></span><span class=line><span class=cl>      // the svcmgr_handler return -1
+</span></span><span class=line><span class=cl>        data.txn.flags = ;
+</span></span><span class=line><span class=cl>        data.txn.data_size = sizeof(int);
+</span></span><span class=line><span class=cl>        data.txn.offsets_size = 0;
+</span></span><span class=line><span class=cl>        data.txn.data.ptr.buffer = (uintptr_t)&amp;status;
+</span></span><span class=line><span class=cl>        data.txn.data.ptr.offsets = 0;
+</span></span><span class=line><span class=cl>    } else {
+</span></span><span class=line><span class=cl>      // the svcmgr_handler return 0
+</span></span><span class=line><span class=cl>        data.txn.flags = 0;
+</span></span><span class=line><span class=cl>        data.txn.data_size = reply-&gt;data - reply-&gt;data0;
+</span></span><span class=line><span class=cl>        data.txn.offsets_size = ((char*) reply-&gt;offs) - ((char*) reply-&gt;offs0);
+</span></span><span class=line><span class=cl>        data.txn.data.ptr.buffer = (uintptr_t)reply-&gt;data0;
+</span></span><span class=line><span class=cl>        data.txn.data.ptr.offsets = (uintptr_t)reply-&gt;offs0;
+</span></span><span class=line><span class=cl>    }
+</span></span><span class=line><span class=cl>    binder_write(bs, &amp;data, sizeof(data));
+</span></span><span class=line><span class=cl>}
+</span></span></code></pre></td></tr></table></div></div><p>Note the declared <em>data</em> structure, it contains an integer <em>cmd_free</em> (that will be <em>BC_FREE_BUFFER</em>), the <em>buffer</em>, the <em>cmd_reply</em> (that will be <em>BC_REPLY</em>) and a <em>binder_transaction_data</em> structure.</p><p>The buffer to free is <em>binder_transaction_data.data.ptr.buffer</em> (previously casted in <em>binder_io</em>. it contains &lsquo;<em>parameters</em>&rsquo;, for example a service name for the servicemanager) and then the structure is filled based on the <em>status</em> value.</p><p>The status value is the return value from the servicemanager handler (svcmgr_handler) that can be 0 if everything was fine (and the reply was filled) or -1 if something went wrong.
+If the result is -1, this result is copied inside the data.txn.data.ptr.buffer (so inside the binder_transaction_data of the data structure).</p><p>If the result of the service manager handler was fine (0), the binder_transaction_data is filled with reply&rsquo;s data/offset buffers and passed over the binder_write() function, that, as explained before, will take the data structure and put it in binder_write_read.write_buffer before calling ioctl() with the BINDER_WRITE_READ command.</p><a href=#little-resume><h2 id=little-resume><span class=hanchor arialabel=Anchor># </span>Little resume</h2></a><p>The servicemanager is started by the init process (as defined in /init.rc) and first of all it becomes the context manager for the binder. Then he notices the binder that will enter an infinite loop (<em>BC_ENTER_LOOPER</em>) and starts to read and parse operations delivered from the binder. When such events are related to service lookup or service registration (<em>SVC_MGR_GET_SERVICE</em> and <em>SVC_MGR_ADD_SERVICE</em>) the binder request the servicemanager for a <em>BR_TRANSACTION</em> with one of these commands inside its <em>binder_transaction_data</em> structure. The servicemanager checks for necessary rights on the caller process (information sent from the binder) and, in the case of a service lookup, returns an handle to the binder. When it&rsquo;s done, the reply is sent to the binder using <em>ioctl</em> with <em>BINDER_WRITE_READ</em> with the reply inside the <em>write_buffer</em> and the <em>BC_REPLY</em> command.</p><a href=#conclusions><h2 id=conclusions><span class=hanchor arialabel=Anchor># </span>Conclusions</h2></a><p>In this post, we concentrated on transactions between the Binder and the servicemanager, a crucial component for IPC.</p></article><hr><div class=page-end id=footer><div class=backlinks-container><h3>Backlinks</h3><ul class=backlinks><li><a href=/pers-blog// data-ctx="notes/Android Internals IPC - Binder and Service Manager Perspective" data-src=/ class=internal-link>👾 KIKS.</a></li></ul></div><div><script src=https://cdn.jsdelivr.net/npm/d3@6.7.0/dist/d3.min.js integrity="sha256-+7jaYCp29O1JusNWHaYtgUn6EhuP0VaFuswhNV06MyI=" crossorigin=anonymous></script><h3>Interactive Graph</h3><div id=graph-container></div><style>:root{--g-node:var(--secondary);--g-node-active:var(--primary);--g-node-inactive:var(--visited);--g-link:var(--outlinegray);--g-link-active:#5a7282}</style><script src=https://kiks7.github.io/pers-blog/js/graph.abd4bc2af3869a96524d7d23b76152c7.js></script></div></div><div id=contact_buttons><footer><p>Powered by <a href=https://github.com/jackyzha0/quartz>Quartz</a>, © 2022</p><ul><li><a href=https://kiks7.github.io/pers-blog/>Home</a></li><li><a href=https://twitter.com/_jzhao>Twitter</a></li><li><a href=https://github.com/jackyzha0>Github</a></li></ul></footer></div></div></body></html>
