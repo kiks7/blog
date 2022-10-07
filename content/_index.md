@@ -1,28 +1,28 @@
 ---
 title: 👾 KIKS.
-enableToc: true
+enableToc: false
 ---
 
-Hosta your second brain and [digital garden](https://jzhao.xyz/posts/networked-thought) for free. Quartz features
+## 2022
+- [[notes/Linux Kernel n-day exploit development]]
+- [[notes/Hunting for Linux Kernel public vulnerabilities]]
+- [[notes/KRWX - Kernel Read Write Execute]]
 
-1. Extremely fast natural-language [[notes/search]]
-2. Customizable and hackable design based on [Hugo](https://gohugo.io/)
-3. Automatically generated backlinks, link previews, and local graph
-4. Built-in [[notes/CJK + Latex Support (测试) | CJK + Latex Support]] and [[notes/callouts | Admonition-style callouts]]
-5. Support for both Markdown Links and Wikilinks
-6. [[Linux Kernel Exploitation > Hunting for public vulnerabilities]]
+## 2020
+- [[notes/Owncloud Multiple Vulnerabilities (CSRF, SSRF and Information Leak)]]
+- [[notes/Android Internals IPC - Introduction]]
+- [[notes/Android Internals IPC - Binder and Service Manager Perspective]]
+- [[notes/Moodle Server-Side Request Forgery (SSRF)]]
 
-Check out some of the [amazing gardens that community members](notes/showcase.md) have published with Quartz or read about [why I made Quartz](notes/philosophy.md) to begin with.
+## 2019
+- [[notes/TIM Mobile Phone Geolocalization]]
+- [[notes/Rusty Joomla Remote Code Execution]]
 
-## Get Started
-> 📚 Step 1: [Setup your own digital garden using Quartz](notes/setup.md)
-
-Returning user? Figure out how to [[notes/updating|update]] your existing Quartz garden.
-
-If you prefer browsing the contents of this site through a list instead of a graph, you see a list of all [setup-related notes](/tags/setup).
-
-### Troubleshooting
-- 🚧 [Troubleshooting and FAQ](notes/troubleshooting.md)
-- 🐛 [Submit an Issue](https://github.com/jackyzha0/quartz/issues)
-- 👀 [Discord Community](https://discord.gg/cRFFHYye7t)
-
+## 2017
+- [[notes/How To Write FUD Malware (Thesis)]]
+## About Me
+- @kiks - Security Researcher.
+- Trying to break stuff since ~2k16.
+- [git/kiks7](https://github.com/kiks7)
+- [twitter](https://twitter.com/kiks7_7)
+> This, the thrill of pwning a system, this is the greatest rush.
