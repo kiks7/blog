@@ -1,6 +1,6 @@
 baseURL = "https://1day.dev/"
 languageCode = "en-us"
-googleAnalytics = "G-XYFD95KB4J"
+googleAnalytics = "G-BZ6HJYMG3K"
 relativeURLs = false
 disablePathToLower = true
 ignoreFiles = [

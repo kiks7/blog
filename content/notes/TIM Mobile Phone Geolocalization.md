@@ -27,19 +27,25 @@ In order to accept being geolocalized, the user has to click on the link in the 
 
 ![img2|200](/notes/images/tim/2.png)
 
-This action triggers a GET request to /tim/api/unsecured/consenso/<user-token>.
+This action triggers a GET request to /tim/api/unsecured/consenso/\<user-token\>.
 Everything seems ok, users have to agree in order to use this service. But things turned out for the best, almost...
 
 ## Vulnerability
 
 We started to collect multiple tokens and we were surprised about their low entropy.
 The base64 string sent within the link hides a 24 character token with both static and at first glance random values. If we break up some tokens, obtained within the same day and with few hours of delay, we noticed the following schema:  
+
+```
+
 XXXX AAAA YYYYYYYYYYYYYYY D  
 XXXX BBBB YYYYYYYYYYYYYYY E  
 XXXX CCCC YYYYYYYYYYYYYYY F  
-(next day)  
-XXXX GGGG ZZZZZZZZZZZZZZZ H  
+```
+(next day) 
+```
 
+XXXX GGGG ZZZZZZZZZZZZZZZ H  
+```
 
 The schema may be decoded as follows:
 - First part: the 4 Xs are always the same, they may be a static value
@@ -51,8 +57,10 @@ We have confirmed that these tokens are not randomly generated and they have pre
 
 The crucial test consisted to send requests for 2 tokens in a very short period of time (2 seconds):
 
+```
 XXXX XXDD YYYYYYYYYYYYYYY A  
 XXXX XXFF YYYYYYYYYYYYYYY B
+```
 
 
 Bingo!
