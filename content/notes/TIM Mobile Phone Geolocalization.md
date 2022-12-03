@@ -5,7 +5,7 @@ tags:
 - Web
 ---
 
-During the monthly research activity in [Hacktive Security](https://hacktivesecurity.com/){:target="blank"}, we found and went in depth with an interesting security issue allowing geolocation of mobile devices using TIM, an Italian communication provider. A malicious user could find the TIM customers geo-position by forcing the approval mechanism to allow the geopositional tracking. 
+During the monthly research activity in [Hacktive Security](https://hacktivesecurity.com/), we found and went in depth with an interesting security issue allowing geolocation of mobile devices using TIM, an Italian communication provider. A malicious user could find the TIM customers geo-position by forcing the approval mechanism to allow the geopositional tracking. 
 
 The research has been focused on TerminalLocation API service provided by TIM on its API Store.
 TerminalLocation lets retrieve location of arbitrary devices by their phone numbers.
