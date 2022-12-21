@@ -4,7 +4,7 @@ enableToc: false
 ---
 
 ## 2022
-- [[notes/CVE-2022-2602 > DirtyCred File Exploitation applied on an io_uring UAF]]
+- [[CVE-2022-2602 > DirtyCred File Exploitation applied on an io_uring UAF]]
 - [[notes/Linux Kernel n-day exploit development]]
 - [[notes/Hunting for Linux Kernel public vulnerabilities]]
 - [[notes/KRWX - Kernel Read Write Execute]]
