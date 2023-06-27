@@ -11,8 +11,8 @@ enableToc: false
 
 ## 2020
 - [[notes/Owncloud Multiple Vulnerabilities (CSRF, SSRF and Information Leak)]]
-- [[notes/Android Internals IPC - Introduction]]
 - [[notes/Android Internals IPC - Binder and Service Manager Perspective]]
+- [[notes/Android Internals IPC - Introduction]]
 - [[notes/Moodle Server-Side Request Forgery (SSRF)]]
 
 ## 2019
@@ -22,7 +22,7 @@ enableToc: false
 ## 2017
 - [[notes/How To Write FUD Malware (Thesis)]]
 ## About Me
-- @kiks - Security Researcher.
+- @kiks - Security Researcher @[Hacktive Security](https://blog.hacktivesecurity.com)
 - Trying to break stuff since ~2k16.
 - [git/kiks7](https://github.com/kiks7)
 - [twitter](https://twitter.com/kiks7_7)

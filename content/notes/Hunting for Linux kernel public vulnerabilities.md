@@ -22,7 +22,7 @@ The first thing I asked myself was: how do I find a suitable bug for my purpose?
 -   Changelogs
 -   Git log
 
-Kernel changelogs is definetly my favourite one but let's say few words on all of them.
+Kernel changelogs is definitely my favourite one but let's say few words on all of them.
 
 ### BugZilla
 [BugZilla](https://bugzilla.kernel.org/) is the standard way to [report bugs](https://www.kernel.org/doc/html/v4.19/admin-guide/reporting-bugs.html) in the upstream Linux kernels. You can find interesting vulnerabilities organised by subsystem (e.g. Networking with IPv4 and IPv6 or file system with ext* types and so on) and you can also search for keywords (such as "overflow", "heap", "UAF" and so on ..) using the standard search or the more advanced one. The personal downside is the mix of a lot of "non vulnerabilities", hangs and stuff like that. Also, you do not have the most powerful search options (e.g. some bash). However, it is still a good option and I personally pinned few vulnerabilities that i excluded afterwards.
