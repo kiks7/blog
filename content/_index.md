@@ -10,9 +10,9 @@ enableToc: false
 - [[notes/KRWX - Kernel Read Write Execute]]
 
 ## 2020
-- [[notes/Owncloud Multiple Vulnerabilities (CSRF, SSRF and Information Leak)]]
 - [[notes/Android Internals IPC - Binder and Service Manager Perspective]]
 - [[notes/Android Internals IPC - Introduction]]
+- [[notes/Owncloud Multiple Vulnerabilities (CSRF, SSRF and Information Leak)]]
 - [[notes/Moodle Server-Side Request Forgery (SSRF)]]
 
 ## 2019

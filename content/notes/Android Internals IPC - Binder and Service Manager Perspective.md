@@ -12,7 +12,7 @@ As mentioned in the previous article, Android uses the Binder for IPC communicat
 
 ## High level overview
 
-Binder is a Kernel module written in C++, mainly responsible to let processes securely, transparently and easily communicate with each other using a client-server architecture. The simplicity on how processes can interact together is awful, a client application just needs to call a method provided by the service (that is the server in the client-side architecture) and everything in between is handled by the Binder. With ‘everything in between’ I mean **Location**, **Delivery** and **credentials**.
+Binder is a Kernel module written in C, mainly responsible to let processes securely, transparently and easily communicate with each other using a client-server architecture. The simplicity on how processes can interact together is awful, a client application just needs to call a method provided by the service (that is the server in the client-side architecture) and everything in between is handled by the Binder. With ‘everything in between’ I mean **Location**, **Delivery** and **credentials**.
 
 
 
