@@ -22,7 +22,7 @@ enableToc: false
 ## 2017
 - [[notes/How To Write FUD Malware (Thesis)]]
 ## About Me
-- @kiks - Security Researcher @[Hacktive Security](https://blog.hacktivesecurity.com)
+- @kiks - VR @[Hacktive Security](https://blog.hacktivesecurity.com)
 - Trying to break stuff since ~2k16.
 - [git/kiks7](https://github.com/kiks7)
 - [twitter](https://twitter.com/kiks7_7)

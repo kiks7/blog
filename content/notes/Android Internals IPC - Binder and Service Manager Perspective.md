@@ -423,7 +423,7 @@ We can note the differences on the usage of the *binder_write_read* structure no
 
 Said that, we can come back inside the *binder_send_reply()*, that is responsible to send the reply of performed actions to the Binder. This is the source code:
 
-``` cpp
+```cpp
 
 void binder_send_reply(struct binder_state *bs,
                        struct binder_io *reply,

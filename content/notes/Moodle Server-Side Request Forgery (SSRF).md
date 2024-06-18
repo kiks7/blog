@@ -24,7 +24,7 @@ If you request an HTML page, Moodle will fetch all `<img>` tags inside it and as
 
 ### POC
 
-![img1](/notes/images/moodle/1.png)/notes/images/android/
+![img1|400](/notes/images/moodle/1.png)
 
 From the 'URL Downloader' action inside the File Picker, we can put a URL to our server that points to /index.html, that will contains the following payload:
 
@@ -32,18 +32,18 @@ From the 'URL Downloader' action inside the File Picker, we can put a URL to our
 <img src=http://169.254.169.254/latest/meta-data/identity-credentials/ec2/security-credentials/ec2-instance>
 ``
 
-The request will catch our 'src' attribute as follow:
+The request will catch our `src` attribute as follow:
 
 
 ![img2](/notes/images/moodle/2.png)
 
 That will result, in the UI, in the following selection:
 
-![img3](/notes/images/moodle/3.png)
+![img3|400](/notes/images/moodle/3.png)
 
 We can click on the box, and choose to download the fetced 'image'
 
-![img4](/notes/images/moodle/4.png)
+![img4|300](/notes/images/moodle/4.png)
 
 In order to download the response, we have to provide a custom extension in the title name and customize the accepted_types[] parameter according to it (for example .arbitraryExtension)
 
@@ -55,7 +55,7 @@ he returned JSON response will contain the path to the result file (with the arb
 
 By automating this whole process with an exploit, we can now easily interact with local services.
 
-For example, in a AWS EC2 instance we can interact with the Meta and User Data API internal endpoint at 169.254.169.254 (You can find more about this API at [AWS Documentation](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/ec2-instance-metadata.html){:target="blank"}).
+For example, in a AWS EC2 instance we can interact with the Meta and User Data API internal endpoint at 169.254.169.254 (You can find more about this API at [AWS Documentation](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/ec2-instance-metadata.html).
 
 
 ![img7](/notes/images/moodle/7.png)
@@ -63,14 +63,14 @@ For example, in a AWS EC2 instance we can interact with the Meta and User Data A
 ![img8](/notes/images/moodle/8.png)
 
 ## The old Blind SSRF
-The unpatched Blind SSRF vulnerability (CVE-2018-1042) was already described here: [exploit-db/exploits/47177](https://www.exploit-db.com/exploits/47177){:target="blank"}. The patch did not applied any fix, so it is still exploitable and more suitable for internal port scans (as it is blind):
+The unpatched Blind SSRF vulnerability (CVE-2018-1042) was already described here: [exploit-db/exploits/47177](https://www.exploit-db.com/exploits/47177). The patch did not applied any fix, so it is still exploitable and more suitable for internal port scans (as it is blind):
 
-![img9](/notes/images/moodle/9.png)
+![img9|600](/notes/images/moodle/9.png)
 
 You can find both exploits in the Reference section.
 
 ## Conclusions and Workaround
-As we said, these SSRF are actually working on the latest Moodle release and their impact can be pretty critical for cloud based instances. Moodle has an open issue that plans to restrict most common restriction scenarios [MDL-56873](https://tracker.moodle.org/browse/MDL-56873){:target="blank"} from 2016.
+As we said, these SSRF are actually working on the latest Moodle release and their impact can be pretty critical for cloud based instances. Moodle has an open issue that plans to restrict most common restriction scenarios [MDL-56873](https://tracker.moodle.org/browse/MDL-56873) from 2016.
 
 To fix these issues, from 'Site Administration > Security > HTTP Security' it is possible to restrict allowed hosts and ports (cURL blocked hosts and cURL allowed ports). You can customize these configurations based on your environment (such as restricting the loopback, internal network and allowing only HTTP ports to avoid port scans also to external sources).
 
