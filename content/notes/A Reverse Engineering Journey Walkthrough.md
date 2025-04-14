@@ -7,7 +7,7 @@ tags:
 ---
 
 ## Introduction
-This blog post is about a manually Reverse Engineered challenge I have written for this year [NoHat24](https://www.nohat.it/) security conference. The conference was a blast and we also did (as [Hacktive Security](https://www.hacktivesecurity.com/)) our best to contribute also with a [worskhop](https://www.nohat.it/workshops#alessandro_groppo) on Linux Kernel Fuzzing. The challenge is a compiled C/C++ binary that implements a custom TCP protocol that can be reversed and exploited to obtain the flag. The blog post objective is to guide a beginner person with a step by step and detailed walkthrough of the whole Reverse Engineering journey, dealing with a statically compiled binary. For the best experience, it is highly suggested to download the target binary from [here TODO ](TODO) and try to replicate described steps.
+This blog post is about a manually Reverse Engineered challenge I have written for this year [NoHat24](https://www.nohat.it/) security conference. The conference was a blast and we also did (as [Hacktive Security](https://www.hacktivesecurity.com/)) our best to contribute also with a [worskhop](https://www.nohat.it/workshops#alessandro_groppo) on Linux Kernel Fuzzing. The challenge is a compiled C/C++ binary that implements a custom TCP protocol that can be reversed and exploited to obtain the flag. The blog post objective is to guide a beginner person with a step by step and detailed walkthrough of the whole Reverse Engineering journey, dealing with a statically compiled binary. For the best experience, it is highly suggested to download the target binary from [here ](https://github.com/hacktivesec/nohat24-blog-references/blob/main/re/challenge) and try to replicate described steps.
 
 ## The beginning of the journey
 First things  first, let's see what our binary is with a simple `file` command:
@@ -802,7 +802,7 @@ After this intensive Reverse Engineering phase, we have recovered a much more un
 - The write operation is not implemented, while the stat is able to identify existing files and the read operation to read arbitrary files.
 - The read operation, from the command `0x20`, can be exploited in order to read the flag at `/home/pwnx/flag.txt` (as instructed in the webroot at port 80).
 
-To solve the challenge, it is necessary to initializes a session that returns a xoring key. The retrieved key is used to "encrypt" a further message that contains a read operation to the `/home/pwnx/flag.txt` file.  The final python exploit can be found [here TODO](TODO).
+To solve the challenge, it is necessary to initializes a session that returns a xoring key. The retrieved key is used to "encrypt" a further message that contains a read operation to the `/home/pwnx/flag.txt` file.  The final python exploit can be found [here](https://github.com/hacktivesec/nohat24-blog-references/blob/main/re/exploit.py).
 
 ## libc signature resolution alternative
 An alternative solution to retrieve function signatures for statically linked libc functions is to use something like [IDA FLIRT](https://docs.hex-rays.com/user-guide/signatures/flirt) or its [Ghidra ApplySig](https://github.com/NWMonster/ApplySig) alternative. This approach is well explained from Liveoverflow in the following video: [Reversing Statically-Linked Binaries with Function Signatures](https://www.youtube.com/watch?v=CgGha_zLqlo).

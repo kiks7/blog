@@ -3,6 +3,7 @@ title: 👾 KIKS.
 enableToc: false
 ---
 
+---
 ## About
 - @kiks - VR - Trying to break stuff since ~2k16.
 - kiks.zero (at) proton.me
@@ -47,5 +48,7 @@ enableToc: false
 ### [[notes/Rusty Joomla Remote Code Execution]]
 
 ### [[notes/How To Write FUD Malware (Thesis)]]
+
+---
 
 >This, the thrill of pwning a system, this is the greatest rush.
