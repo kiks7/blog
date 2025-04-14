@@ -1,0 +1,452 @@
+<!doctype html><html lang=en><head><meta charset=utf-8><meta name=description content="Introduction From the official Android documentation, the Intent is described as “an abstract description of an operation to be performed”. Conceptually, it can be simplified as an “intention to do something with another application” across Inter-Process Communication (IPC)."><title>Android Deep Dive - Implicit Intents</title><meta name=viewport content="width=device-width,initial-scale=1"><link rel="shortcut icon" type=image/png href=https://1day.dev//icon.png><link href=https://1day.dev/styles.7153093e4d1bbb584a28469cadfa3f88.min.css rel=stylesheet><link href=https://1day.dev/styles/_light_syntax.86a48a52faebeaaf42158b72922b1c90.min.css rel=stylesheet id=theme-link><script src=https://1day.dev/js/darkmode.e6934a61ff52b65bd16cdf94b370f112.min.js></script>
+<script src=https://1day.dev/js/util.9825137f5e7825e8553c68ce39ac9e44.min.js></script>
+<link rel=stylesheet href=https://cdn.jsdelivr.net/npm/katex@0.15.1/dist/katex.min.css integrity=sha384-R4558gYOUz8mP9YWpZJjofhk+zx0AS11p36HnD2ZKj/6JR5z27gSSULCNHIRReVs crossorigin=anonymous><script defer src=https://cdn.jsdelivr.net/npm/katex@0.15.1/dist/katex.min.js integrity=sha384-z1fJDqw8ZApjGO3/unPWUPsIymfsJmyrDVWC8Tv/a1HeOtGmkwNd/7xUS0Xcnvsx crossorigin=anonymous></script>
+<script defer src=https://cdn.jsdelivr.net/npm/katex@0.15.1/dist/contrib/auto-render.min.js integrity=sha384-+XBljXPPiv+OzfbB3cVmLHf4hdUFHlWNZN5spNQ7rmHTXpd7WvJum6fIACpNNfIR crossorigin=anonymous></script>
+<script defer src=https://cdn.jsdelivr.net/npm/katex@0.16.2/dist/contrib/copy-tex.min.js integrity=sha384-ww/583aHhxWkz5DEVn6OKtNiIaLi2iBRNZXfJRiY1Ai7tnJ9UXpEsyvOITVpTl4A crossorigin=anonymous></script>
+<script src=https://unpkg.com/@floating-ui/core@0.7.3></script>
+<script src=https://unpkg.com/@floating-ui/dom@0.5.4></script>
+<script src=https://1day.dev/js/popover.53ad9a087e3feeaaa12b63bfd02d923b.min.js></script>
+<script src=https://1day.dev/js/code-title.b35124ad8db0ba37162b886afb711cbc.min.js></script>
+<script src=https://1day.dev/js/clipboard.c20857734e53a3fb733b7443879efa61.min.js></script>
+<script src=https://1day.dev/js/callouts.7723cac461d613d118ee8bb8216b9838.min.js></script>
+<script>const BASE_URL="https://1day.dev/",fetchData=Promise.all([fetch("https://1day.dev/indices/linkIndex.ac82e8decb8dc8a597c857b3650a94a1.min.json").then(e=>e.json()).then(e=>({index:e.index,links:e.links})),fetch("https://1day.dev/indices/contentIndex.f2cf86d51427d0ee368981c57e7bb3a8.min.json").then(e=>e.json())]).then(([{index:e,links:t},n])=>({index:e,links:t,content:n})),render=()=>{const e=new URL(BASE_URL),t=e.pathname,n=window.location.pathname,s=t==n;addCopyButtons(),addTitleToCodeBlocks(),addCollapsibleCallouts(),initPopover("https://1day.dev",!1,!0);const o=document.getElementById("footer");if(o){const e=document.getElementById("graph-container");if(!e)return requestAnimationFrame(render);e.textContent="";const t=s&&!1;drawGraph("https://1day.dev",t,[{"/moc":"#4388cc"}],t?{centerForce:1,depth:-1,enableDrag:!0,enableLegend:!1,enableZoom:!0,fontSize:.5,linkDistance:1,opacityScale:3,repelForce:1,scale:1.4}:{centerForce:1,depth:1,enableDrag:!0,enableLegend:!1,enableZoom:!0,fontSize:.6,linkDistance:1,opacityScale:3,repelForce:2,scale:1.2})}},init=(e=document)=>{addCopyButtons(),addTitleToCodeBlocks(),renderMathInElement(e.body,{delimiters:[{left:"$$",right:"$$",display:!0},{left:"$",right:"$",display:!1}],macros:{'’':"'"},throwOnError:!1})}</script><script type=module>
+    import { attachSPARouting } from "https:\/\/1day.dev\/js\/router.9d4974281069e9ebb189f642ae1e3ca2.min.js"
+    attachSPARouting(init, render)
+  </script></head><script async src="https://www.googletagmanager.com/gtag/js?id=G-BZ6HJYMG3K"></script>
+<script>var doNotTrack=!1;if(!doNotTrack){window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments)}gtag("js",new Date),gtag("config","G-BZ6HJYMG3K",{anonymize_ip:!1})}</script><body><div id=search-container><div id=search-space><input autocomplete=off id=search-bar name=search type=text aria-label=Search placeholder="Search for something..."><div id=results-container></div></div></div><script src=https://cdn.jsdelivr.net/npm/flexsearch@0.7.21/dist/flexsearch.bundle.js integrity="sha256-i3A0NZGkhsKjVMzFxv3ksk0DZh3aXqu0l49Bbh0MdjE=" crossorigin=anonymous defer></script>
+<script defer src=https://1day.dev/js/full-text-search.24827f874defbbc6d529926cbfcfb493.min.js></script><div class=singlePage><header><h1 id=page-title><a href=https://1day.dev/>👾 @kiks</a></h1><div class=spacer></div><div id=search-icon><p>Search</p><svg tabindex="0" aria-labelledby="title desc" role="img" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 19.9 19.7"><title id="title">Search Icon</title><desc id="desc">Icon to open search</desc><g class="search-path" fill="none"><path stroke-linecap="square" d="M18.5 18.3l-5.4-5.4"/><circle cx="8" cy="8" r="7"/></g></svg></div><div class=darkmode><input class=toggle id=darkmode-toggle type=checkbox tabindex=-1>
+<label id=toggle-label-light for=darkmode-toggle tabindex=-1><svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" id="dayIcon" viewBox="0 0 35 35" style="enable-background:new 0 0 35 35"><title>Light Mode</title><path d="M6 17.5C6 16.672 5.328 16 4.5 16h-3C.672 16 0 16.672.0 17.5S.672 19 1.5 19h3C5.328 19 6 18.328 6 17.5zM7.5 26c-.414.0-.789.168-1.061.439l-2 2C4.168 28.711 4 29.086 4 29.5 4 30.328 4.671 31 5.5 31c.414.0.789-.168 1.06-.44l2-2C8.832 28.289 9 27.914 9 27.5 9 26.672 8.329 26 7.5 26zm10-20C18.329 6 19 5.328 19 4.5v-3C19 .672 18.329.0 17.5.0S16 .672 16 1.5v3C16 5.328 16.671 6 17.5 6zm10 3c.414.0.789-.168 1.06-.439l2-2C30.832 6.289 31 5.914 31 5.5 31 4.672 30.329 4 29.5 4c-.414.0-.789.168-1.061.44l-2 2C26.168 6.711 26 7.086 26 7.5 26 8.328 26.671 9 27.5 9zM6.439 8.561C6.711 8.832 7.086 9 7.5 9 8.328 9 9 8.328 9 7.5c0-.414-.168-.789-.439-1.061l-2-2C6.289 4.168 5.914 4 5.5 4 4.672 4 4 4.672 4 5.5c0 .414.168.789.439 1.06l2 2.001zM33.5 16h-3c-.828.0-1.5.672-1.5 1.5s.672 1.5 1.5 1.5h3c.828.0 1.5-.672 1.5-1.5S34.328 16 33.5 16zM28.561 26.439C28.289 26.168 27.914 26 27.5 26c-.828.0-1.5.672-1.5 1.5.0.414.168.789.439 1.06l2 2C28.711 30.832 29.086 31 29.5 31c.828.0 1.5-.672 1.5-1.5.0-.414-.168-.789-.439-1.061l-2-2zM17.5 29c-.829.0-1.5.672-1.5 1.5v3c0 .828.671 1.5 1.5 1.5s1.5-.672 1.5-1.5v-3C19 29.672 18.329 29 17.5 29zm0-22C11.71 7 7 11.71 7 17.5S11.71 28 17.5 28 28 23.29 28 17.5 23.29 7 17.5 7zm0 18c-4.136.0-7.5-3.364-7.5-7.5s3.364-7.5 7.5-7.5 7.5 3.364 7.5 7.5S21.636 25 17.5 25z"/></svg></label><label id=toggle-label-dark for=darkmode-toggle tabindex=-1><svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" id="nightIcon" viewBox="0 0 100 100" style="enable-background='new 0 0 100 100'"><title>Dark Mode</title><path d="M96.76 66.458c-.853-.852-2.15-1.064-3.23-.534-6.063 2.991-12.858 4.571-19.655 4.571C62.022 70.495 50.88 65.88 42.5 57.5 29.043 44.043 25.658 23.536 34.076 6.47c.532-1.08.318-2.379-.534-3.23-.851-.852-2.15-1.064-3.23-.534-4.918 2.427-9.375 5.619-13.246 9.491-9.447 9.447-14.65 22.008-14.65 35.369.0 13.36 5.203 25.921 14.65 35.368s22.008 14.65 35.368 14.65c13.361.0 25.921-5.203 35.369-14.65 3.872-3.871 7.064-8.328 9.491-13.246C97.826 68.608 97.611 67.309 96.76 66.458z"/></svg></label></div></header><article><h1>Android Deep Dive - Implicit Intents</h1><p class=meta>Last updated
+Feb 14, 2025</p><ul class=tags><li><a href=https://1day.dev/tags/Android/>Android</a></li><li><a href=https://1day.dev/tags/Reversing/>Reversing</a></li></ul><aside class=mainTOC><details><summary>Table of Contents</summary><nav id=TableOfContents><ol><li><a href=#introduction>Introduction</a></li><li><a href=#intent-registration>Intent registration</a><ol><li><a href=#starting-from-the-beginning>Starting from the beginning</a></li><li><a href=#the-obscure-less-known-internal-classification>The &ldquo;obscure&rdquo;, less-known, internal classification</a></li><li><a href=#registering-methods>Registering methods</a></li></ol></li><li><a href=#intent-resolution>Intent resolution</a><ol><li><a href=#startactivity>startActivity</a></li><li><a href=#sendbroadcast>sendBroadcast</a></li><li><a href=#system-services-and-other-methods>System Services and other methods</a></li></ol></li><li><a href=#dumpsys>dumpsys</a></li><li><a href=#backtraces>Backtraces</a><ol><li><a href=#backtrace-startactivity>Backtrace: startActivity</a></li><li><a href=#backtrace-sendbroadcast>Backtrace: sendBroadcast</a></li></ol></li><li><a href=#conclusion>Conclusion</a></li><li><a href=#references>References</a></li></ol></nav></details></aside><a href=#introduction><h2 id=introduction><span class=hanchor arialabel=Anchor># </span>Introduction</h2></a><p>From the official
+<a href=https://developer.android.com/reference/android/content/Intent rel=noopener>Android documentation</a>, the <code>Intent</code> is described as “an abstract description of an operation to be performed”. Conceptually, it can be simplified as an “intention to do something with another application” across Inter-Process Communication (IPC). One of the most interesting facility that intents offer is the implicit resolution. An application can explicitly declare to handle specific intents (through the <code>&lt;intent-filter></code> declaration) and these intents are <em><strong>magically</strong></em> delivered to it from other applications, without the knowledge of the final destination package. Since magic can be hypothetically just defined as a form of ignorance (<em>at least</em> in computer science?), let’s see where the “magic” happens in the Android source code!</p><a href=#intent-registration><h2 id=intent-registration><span class=hanchor arialabel=Anchor># </span>Intent registration</h2></a><a href=#starting-from-the-beginning><h3 id=starting-from-the-beginning><span class=hanchor arialabel=Anchor># </span>Starting from the beginning</h3></a><p>Let&rsquo;s start from an application point of view that needs to handle specific actions: an <code>&lt;intent-filter></code> is declared inside the <code>AndroidManifest.xml</code>:</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt>1
+</span><span class=lnt>2
+</span><span class=lnt>3
+</span><span class=lnt>4
+</span><span class=lnt>5
+</span><span class=lnt>6
+</span><span class=lnt>7
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-xml data-lang=xml><span class=line><span class=cl><span class=nt>&lt;component</span> <span class=err>android:name</span><span class=nt>&gt;</span>
+</span></span><span class=line><span class=cl>	<span class=nt>&lt;intent-filter&gt;</span>
+</span></span><span class=line><span class=cl>		<span class=nt>&lt;action</span> <span class=na>android:name=</span><span class=s>&#34;android.intent.action.VIEW&#34;</span><span class=nt>&gt;</span>
+</span></span><span class=line><span class=cl>		<span class=nt>&lt;category</span> <span class=na>android:name=</span><span class=s>&#34;android.intent.category.DEFAULT&#34;</span><span class=nt>/&gt;</span>
+</span></span><span class=line><span class=cl>		<span class=nt>&lt;data</span> <span class=na>android:scheme=</span><span class=s>&#34;scheme&#34;</span><span class=nt>/&gt;</span>
+</span></span><span class=line><span class=cl>	<span class=nt>&lt;/intent-filter&gt;</span>
+</span></span><span class=line><span class=cl><span class=nt>&lt;/component&gt;</span>
+</span></span></code></pre></td></tr></table></div></div><p>In this example, the <code>component</code> can be of any type: an <code>activity</code>, <code>receiver</code>, <code>service</code> or <code>provider</code>. Some filters are also specified in order to discriminate matching events that the component is interested into: <code>action</code>, <code>category</code> and <code>data</code> (with the <code>android:scheme</code> attribute) are specifically used in this case (check out the
+<a href=https://developer.android.com/guide/topics/manifest/intent-filter-element rel=noopener>&lt;intent-filter> documentation</a> for more filters and options).
+At install time, the
+<a href=https://developer.android.com/reference/android/content/pm/PackageInstaller rel=noopener><code>PackageInstaller</code></a> service is responsible to install the application and all its components, including intent filters. More specifically, diving into the AOSP (Android Open Source Project) codebase, it is possible to identify some key functions that parse all declared components. More specifically, the
+<a href="https://cs.android.com/android/platform/superproject/+/android-14.0.0_r37:frameworks/base/services/core/java/com/android/server/pm/resolution/ComponentResolver.java;drc=4bf59a583eefeb8b27a79fbd1fc5093ddb79d747;l=191" rel=noopener><code>ComponentResolver::addAllComponents</code></a> method calls four methods that parse all components&rsquo; details.</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-java data-lang=java><span class=line><span class=cl>    <span class=kd>public</span> <span class=kt>void</span> <span class=nf>addAllComponents</span><span class=o>(</span><span class=cm>/*..*/</span><span class=o>){</span>
+</span></span><span class=line><span class=cl>        <span class=cm>/*..*/</span>
+</span></span><span class=line><span class=cl>        <span class=kd>synchronized</span> <span class=o>(</span><span class=n>mLock</span><span class=o>)</span> <span class=o>{</span>
+</span></span><span class=line><span class=cl>            <span class=n>addActivitiesLocked</span><span class=o>(</span><span class=n>computer</span><span class=o>,</span> <span class=n>pkg</span><span class=o>,</span> <span class=n>newIntents</span><span class=o>,</span> <span class=n>chatty</span><span class=o>);</span>
+</span></span><span class=line><span class=cl>            <span class=n>addReceiversLocked</span><span class=o>(</span><span class=n>computer</span><span class=o>,</span> <span class=n>pkg</span><span class=o>,</span> <span class=n>chatty</span><span class=o>);</span>
+</span></span><span class=line><span class=cl>            <span class=n>addProvidersLocked</span><span class=o>(</span><span class=n>computer</span><span class=o>,</span> <span class=n>pkg</span><span class=o>,</span> <span class=n>chatty</span><span class=o>);</span>
+</span></span><span class=line><span class=cl>            <span class=n>addServicesLocked</span><span class=o>(</span><span class=n>computer</span><span class=o>,</span> <span class=n>pkg</span><span class=o>,</span> <span class=n>chatty</span><span class=o>);</span>
+</span></span><span class=line><span class=cl>            <span class=n>onChanged</span><span class=o>();</span>
+</span></span><span class=line><span class=cl>        <span class=o>}</span>
+</span></span><span class=line><span class=cl>        <span class=cm>/*..*/</span>
+</span></span></code></pre></td></tr></table></div></div><p>Following the <code>Add[Component]Locked</code> logic, components are registered based on their type on specific variables (e.g. <code>mActivities</code>, <code>mProviders</code>, <code>mReceivers</code> and <code>mServices</code>) and then intent filters are parsed. Let&rsquo;s take the activity parsing as an example to reference some code, but the concept is the same across all different components. <code>addActivitiesLocked</code> calls
+<a href="https://cs.android.com/android/platform/superproject/+/android-14.0.0_r37:frameworks/base/services/core/java/com/android/server/pm/resolution/ComponentResolver.java;l=282" rel=noopener><code>mActivities.addActivity</code></a> (part of the <code>ComponentResolver</code> class) that calls <code>addFilter</code> for each declared intent filter.</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-java data-lang=java><span class=line><span class=cl>	<span class=c1>// code cutted for demonstration purposes
+</span></span></span><span class=line><span class=cl><span class=c1></span>	<span class=kd>protected</span> <span class=kt>void</span> <span class=nf>addActivity</span><span class=o>(</span><span class=nd>@NonNull</span> <span class=n>Computer</span> <span class=n>computer</span><span class=o>,</span> <span class=n>ParsedActivity</span> <span class=n>a</span><span class=o>,</span> <span class=n>String</span> <span class=n>type</span><span class=o>,</span>
+</span></span><span class=line><span class=cl>			<span class=n>List</span><span class=o>&lt;</span><span class=n>Pair</span><span class=o>&lt;</span><span class=n>ParsedActivity</span><span class=o>,</span> <span class=n>ParsedIntentInfo</span><span class=o>&gt;&gt;</span> <span class=n>newIntents</span><span class=o>)</span> <span class=o>{</span>
+</span></span><span class=line><span class=cl>		<span class=kd>final</span> <span class=kt>int</span> <span class=n>intentsSize</span> <span class=o>=</span> <span class=n>a</span><span class=o>.</span><span class=na>getIntents</span><span class=o>().</span><span class=na>size</span><span class=o>();</span>
+</span></span><span class=line><span class=cl>		<span class=k>for</span> <span class=o>(</span><span class=kt>int</span> <span class=n>j</span> <span class=o>=</span> <span class=n>0</span><span class=o>;</span> <span class=n>j</span> <span class=o>&lt;</span> <span class=n>intentsSize</span><span class=o>;</span> <span class=n>j</span><span class=o>++)</span> <span class=o>{</span>
+</span></span><span class=line><span class=cl>			<span class=n>ParsedIntentInfo</span> <span class=n>intent</span> <span class=o>=</span> <span class=n>a</span><span class=o>.</span><span class=na>getIntents</span><span class=o>().</span><span class=na>get</span><span class=o>(</span><span class=n>j</span><span class=o>);</span>
+</span></span><span class=line><span class=cl>			<span class=n>IntentFilter</span> <span class=n>intentFilter</span> <span class=o>=</span> <span class=n>intent</span><span class=o>.</span><span class=na>getIntentFilter</span><span class=o>();</span>
+</span></span><span class=line><span class=cl>			<span class=k>if</span> <span class=o>(</span><span class=n>newIntents</span> <span class=o>!=</span> <span class=kc>null</span> <span class=o>&amp;&amp;</span> <span class=s>&#34;activity&#34;</span><span class=o>.</span><span class=na>equals</span><span class=o>(</span><span class=n>type</span><span class=o>))</span> <span class=o>{</span>
+</span></span><span class=line><span class=cl>				<span class=n>newIntents</span><span class=o>.</span><span class=na>add</span><span class=o>(</span><span class=n>Pair</span><span class=o>.</span><span class=na>create</span><span class=o>(</span><span class=n>a</span><span class=o>,</span> <span class=n>intent</span><span class=o>));</span>
+</span></span><span class=line><span class=cl>			<span class=o>}</span>
+</span></span><span class=line><span class=cl>			<span class=cm>/* .. */</span>
+</span></span><span class=line><span class=cl>			<span class=n>addFilter</span><span class=o>(</span><span class=n>computer</span><span class=o>,</span> <span class=n>Pair</span><span class=o>.</span><span class=na>create</span><span class=o>(</span><span class=n>a</span><span class=o>,</span> <span class=n>intent</span><span class=o>));</span>
+</span></span><span class=line><span class=cl>		<span class=o>}</span>
+</span></span><span class=line><span class=cl>	<span class=o>}</span>
+</span></span></code></pre></td></tr></table></div></div><p>Intents are cycled within a for loop and each declared intent filter is passed as an argument to
+<a href="https://cs.android.com/android/platform/superproject/+/android-14.0.0_r37:frameworks/base/services/core/java/com/android/server/pm/resolution/ComponentResolver.java;l=834" rel=noopener><code>ComponentResolver::MimeGroupsAwareIntentResolver::addFilter</code></a> that finally calls
+<a href="https://cs.android.com/android/platform/superproject/+/android-14.0.0_r37:frameworks/base/services/core/java/com/android/server/IntentResolver.java;l=58" rel=noopener><code>IntentResolver::addFilter</code></a> where most of the registering process happens. Before diving into the logic of this specific method, it is important to discriminate intent filters as they are internally classified: <code>Full MIME Types</code>, <code>Base MIME Types</code>, <code>Wild MIME Types</code>, <code>Schemes</code>, <code>Non-data Actions</code>, <code>MIME Typed Actions</code>.</p><a href=#the-obscure-less-known-internal-classification><h3 id=the-obscure-less-known-internal-classification><span class=hanchor arialabel=Anchor># </span>The &ldquo;obscure&rdquo;, less-known, internal classification</h3></a><p>The &ldquo;obscure&rdquo; adjective is a clearly amplification of the concept, but there is an interesting internal intent classification (that influences the consecutive resolution process) that is not explicitly documented in the Android Documentation (that is, for most parts, really complete) and it was possible to identify it by wandering in the codebase, more specifically into the
+<a href="https://cs.android.com/android/platform/superproject/+/android-14.0.0_r37:frameworks/base/services/core/java/com/android/server/IntentResolver.java;l=286" rel=noopener><code>IntentResolver::dump</code></a> method reachable from the <code>dumpsys</code> utility (more on that later). These categories are not really difficult to understand and they are particularly influenced by the specified MIME type that can be explicitly defined in the <code>&lt;intent-filter></code> declaration using the
+<a href=https://developer.android.com/guide/topics/manifest/data-element#mime rel=noopener><code>mimeType</code></a> attribute inside the
+<a href=https://developer.android.com/guide/topics/manifest/data-element rel=noopener><code>&lt;data></code></a> tag . The MIME type standard is widely used across technologies in order to identify resource types (e.g. <code>image/png</code>, <code>text/html</code>, ..) and consists of two main parts that we are interested into:</p><ul><li><strong>Type</strong>: the generic type of the the format, for example <code>image</code>, <code>application</code>, <code>audio</code>, <code>video</code> and so on.</li><li><strong>Subtype</strong>: the subtype is more specific and contains the media format. For example <code>png</code>, <code>html</code> and <code>mp4</code> are an example of possible subtypes.</li></ul><p>With this knowledge, we can go through all categories:</p><ul><li><code>Full MIME Types</code>: inside this category we have all possible MIME Types independently of its two parts (e.g. <code>image/png</code> and <code>image/*</code>).</li><li><code>Base MIME Types</code>: the base classification is related to data types that fully contains the two parts (e.g. <code>image/png</code> or <code>video/mp4</code>).</li><li><code>Wild MIME Types</code>: MIME Types without the &ldquo;subtype&rdquo; (e.g. <code>image</code> or <code>video</code>) or with a mask (e.g. <code>image/*</code> or <code>video/*</code>).</li><li><code>Schemes</code>: intent filters that handles data schemes (e.g. <code>&lt;data android:scheme="scheme"/></code>).</li><li><code>Non-data Actions</code>: Intent filters that do not contain any MIME type and data scheme.</li><li><code>MIME Typed Actions</code>: Intent filters that contains at least one MIME type.</li></ul><p>As can be seen, an intent filter can also fall inside different categories. For example, an intent filter declared with a <code>mimeType</code> of value <code>image</code> is classified inside the <code>Full MIME Type</code> (as it contains a MIME type), <code>Wild Mime Type</code> (as it contains only the first part of the MIME type) and <code>MIME Typed Action</code> since it contains at least one MIME type.</p><a href=#registering-methods><h3 id=registering-methods><span class=hanchor arialabel=Anchor># </span>Registering methods</h3></a><p>After this needed digression on the internal classification, let&rsquo;s jump back to the
+<a href="https://cs.android.com/android/platform/superproject/+/android-14.0.0_r37:frameworks/base/services/core/java/com/android/server/IntentResolver.java;l=58" rel=noopener><code>IntentResolver::addFilter</code></a>:</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span><span class=lnt>16
+</span><span class=lnt>17
+</span><span class=lnt>18
+</span><span class=lnt>19
+</span><span class=lnt>20
+</span><span class=lnt>21
+</span><span class=lnt>22
+</span><span class=lnt>23
+</span><span class=lnt>24
+</span><span class=lnt>25
+</span><span class=lnt>26
+</span><span class=lnt>27
+</span><span class=lnt>28
+</span><span class=lnt>29
+</span><span class=lnt>30
+</span><span class=lnt>31
+</span><span class=lnt>32
+</span><span class=lnt>33
+</span><span class=lnt>34
+</span><span class=lnt>35
+</span><span class=lnt>36
+</span><span class=lnt>37
+</span><span class=lnt>38
+</span><span class=lnt>39
+</span><span class=lnt>40
+</span><span class=lnt>41
+</span><span class=lnt>42
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-java data-lang=java><span class=line><span class=cl><span class=c1>// simplified code
+</span></span></span><span class=line><span class=cl><span class=c1></span><span class=kd>public</span> <span class=kt>void</span> <span class=nf>addFilter</span><span class=o>(</span><span class=nd>@Nullable</span> <span class=n>PackageDataSnapshot</span> <span class=n>snapshot</span><span class=o>,</span> <span class=n>F</span> <span class=n>f</span><span class=o>)</span> <span class=o>{</span>
+</span></span><span class=line><span class=cl>	<span class=cm>/* .. */</span><span class=o>*</span>
+</span></span><span class=line><span class=cl>	<span class=n>mFilters</span><span class=o>.</span><span class=na>add</span><span class=o>(</span><span class=n>f</span><span class=o>);</span>
+</span></span><span class=line><span class=cl>	<span class=kt>int</span> <span class=n>numS</span> <span class=o>=</span> <span class=n>register_intent_filter</span><span class=o>(</span><span class=n>f</span><span class=o>,</span> <span class=n>intentFilter</span><span class=o>.</span><span class=na>schemesIterator</span><span class=o>(),</span>
+</span></span><span class=line><span class=cl>			<span class=n>mSchemeToFilter</span><span class=o>,</span> <span class=s>&#34;      Scheme: &#34;</span><span class=o>);</span>
+</span></span><span class=line><span class=cl>	<span class=kt>int</span> <span class=n>numT</span> <span class=o>=</span> <span class=n>register_mime_types</span><span class=o>(</span><span class=n>f</span><span class=o>,</span> <span class=s>&#34;      Type: &#34;</span><span class=o>);</span>
+</span></span><span class=line><span class=cl>	<span class=k>if</span> <span class=o>(</span><span class=n>numS</span> <span class=o>==</span> <span class=n>0</span> <span class=o>&amp;&amp;</span> <span class=n>numT</span> <span class=o>==</span> <span class=n>0</span><span class=o>)</span> <span class=o>{</span>
+</span></span><span class=line><span class=cl>		<span class=n>register_intent_filter</span><span class=o>(</span><span class=n>f</span><span class=o>,</span> <span class=n>intentFilter</span><span class=o>.</span><span class=na>actionsIterator</span><span class=o>(),</span>
+</span></span><span class=line><span class=cl>				<span class=n>mActionToFilter</span><span class=o>,</span> <span class=s>&#34;      Action: &#34;</span><span class=o>);</span>
+</span></span><span class=line><span class=cl>	<span class=o>}</span>
+</span></span><span class=line><span class=cl>	<span class=k>if</span> <span class=o>(</span><span class=n>numT</span> <span class=o>!=</span> <span class=n>0</span><span class=o>)</span> <span class=o>{</span>
+</span></span><span class=line><span class=cl>		<span class=n>register_intent_filter</span><span class=o>(</span><span class=n>f</span><span class=o>,</span> <span class=n>intentFilter</span><span class=o>.</span><span class=na>actionsIterator</span><span class=o>(),</span>
+</span></span><span class=line><span class=cl>				<span class=n>mTypedActionToFilter</span><span class=o>,</span> <span class=s>&#34;      TypedAction: &#34;</span><span class=o>);</span>
+</span></span><span class=line><span class=cl>	<span class=o>}</span>
+</span></span><span class=line><span class=cl><span class=o>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=kd>private</span> <span class=kd>final</span> <span class=kt>int</span> <span class=nf>register_mime_types</span><span class=o>(</span><span class=n>F</span> <span class=n>filter</span><span class=o>,</span> <span class=n>String</span> <span class=n>prefix</span><span class=o>)</span> <span class=o>{</span>
+</span></span><span class=line><span class=cl>	<span class=kd>final</span> <span class=n>Iterator</span><span class=o>&lt;</span><span class=n>String</span><span class=o>&gt;</span> <span class=n>i</span> <span class=o>=</span> <span class=n>getIntentFilter</span><span class=o>(</span><span class=n>filter</span><span class=o>).</span><span class=na>typesIterator</span><span class=o>();</span>
+</span></span><span class=line><span class=cl>	<span class=cm>/* .. */</span>
+</span></span><span class=line><span class=cl>	<span class=kt>int</span> <span class=n>num</span> <span class=o>=</span> <span class=n>0</span><span class=o>;</span>
+</span></span><span class=line><span class=cl>	<span class=k>while</span> <span class=o>(</span><span class=n>i</span><span class=o>.</span><span class=na>hasNext</span><span class=o>())</span> <span class=o>{</span>
+</span></span><span class=line><span class=cl>		<span class=n>String</span> <span class=n>name</span> <span class=o>=</span> <span class=n>i</span><span class=o>.</span><span class=na>next</span><span class=o>();</span>
+</span></span><span class=line><span class=cl>		<span class=n>num</span><span class=o>++;</span>
+</span></span><span class=line><span class=cl>		<span class=n>String</span> <span class=n>baseName</span> <span class=o>=</span> <span class=n>name</span><span class=o>;</span>
+</span></span><span class=line><span class=cl>		<span class=kd>final</span> <span class=kt>int</span> <span class=n>slashpos</span> <span class=o>=</span> <span class=n>name</span><span class=o>.</span><span class=na>indexOf</span><span class=o>(</span><span class=sc>&#39;/&#39;</span><span class=o>);</span>
+</span></span><span class=line><span class=cl>		<span class=k>if</span> <span class=o>(</span><span class=n>slashpos</span> <span class=o>&gt;</span> <span class=n>0</span><span class=o>)</span> <span class=o>{</span>
+</span></span><span class=line><span class=cl>			<span class=n>baseName</span> <span class=o>=</span> <span class=n>name</span><span class=o>.</span><span class=na>substring</span><span class=o>(</span><span class=n>0</span><span class=o>,</span> <span class=n>slashpos</span><span class=o>).</span><span class=na>intern</span><span class=o>();</span>
+</span></span><span class=line><span class=cl>		<span class=o>}</span> <span class=k>else</span> <span class=o>{</span>
+</span></span><span class=line><span class=cl>			<span class=n>name</span> <span class=o>=</span> <span class=n>name</span> <span class=o>+</span> <span class=s>&#34;/*&#34;</span><span class=o>;</span>
+</span></span><span class=line><span class=cl>		<span class=o>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>		<span class=n>addFilter</span><span class=o>(</span><span class=n>mTypeToFilter</span><span class=o>,</span> <span class=n>name</span><span class=o>,</span> <span class=n>filter</span><span class=o>);</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>		<span class=k>if</span> <span class=o>(</span><span class=n>slashpos</span> <span class=o>&gt;</span> <span class=n>0</span><span class=o>)</span> <span class=o>{</span>
+</span></span><span class=line><span class=cl>			<span class=n>addFilter</span><span class=o>(</span><span class=n>mBaseTypeToFilter</span><span class=o>,</span> <span class=n>baseName</span><span class=o>,</span> <span class=n>filter</span><span class=o>);</span>
+</span></span><span class=line><span class=cl>		<span class=o>}</span> <span class=k>else</span> <span class=o>{</span>
+</span></span><span class=line><span class=cl>			<span class=n>addFilter</span><span class=o>(</span><span class=n>mWildTypeToFilter</span><span class=o>,</span> <span class=n>baseName</span><span class=o>,</span> <span class=n>filter</span><span class=o>);</span>
+</span></span><span class=line><span class=cl>		<span class=o>}</span>
+</span></span><span class=line><span class=cl>	<span class=o>}</span>
+</span></span><span class=line><span class=cl>	<span class=k>return</span> <span class=n>num</span><span class=o>;</span>
+</span></span><span class=line><span class=cl><span class=o>}</span>
+</span></span></code></pre></td></tr></table></div></div><p>This method is responsible to register three main categories through its code using the
+<a href="https://cs.android.com/android/platform/superproject/+/android-14.0.0_r37:frameworks/base/services/core/java/com/android/server/IntentResolver.java;l=640" rel=noopener><code>IntentResolver::register_intent_filter</code></a> method: <code>Schemes</code>, <code>Non-Data actions</code> and <code>Typed</code>, while other MIME-related categories are registered through
+<a href="https://cs.android.com/android/platform/superproject/+/android-14.0.0_r37:frameworks/base/services/core/java/com/android/server/IntentResolver.java;l=579" rel=noopener><code>IntentResolver::register_mime_types</code></a>. As can be observed from the code, filters are registered following the previously described classification and results are stored inside the following class members (defined inside
+<a href="https://cs.android.com/android/platform/superproject/+/android-14.0.0_r37:frameworks/base/services/core/java/com/android/server/IntentResolver.java;l=871" rel=noopener><code>IntentResolver.java</code></a>): <code>mSchemeToFilter</code>, <code>mActionToFilter</code>, <code>mTypedActionToFilter</code>, <code>mTypedActionToFilter</code>, <code>mBaseTypeToFilter</code> and <code>mWildTypeToFilter</code>. These members are later used for the resolution process.</p><a href=#intent-resolution><h2 id=intent-resolution><span class=hanchor arialabel=Anchor># </span>Intent resolution</h2></a><p>We have seen the logic behind the registration process of intent filters and now we are in the hearth of the topic: the resolution process.
+The resolution process, and related system services and APIs, particularly depends on the targeted components (activities, receivers, services or providers) but in order to circumscribe the logic, let&rsquo;s take into account two common APIs: <code>startActivity</code> and <code>sendBroadcast</code>. They can both send intents and, more importantly, <strong>implicit</strong> intents.</p><a href=#startactivity><h3 id=startactivity><span class=hanchor arialabel=Anchor># </span>startActivity</h3></a><p>Let&rsquo;s start our journey with the <code>startActivity</code> API, using a simple code as a reference:</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt>1
+</span><span class=lnt>2
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-java data-lang=java><span class=line><span class=cl><span class=n>Intent</span> <span class=n>in</span> <span class=o>=</span> <span class=k>new</span> <span class=n>Intent</span><span class=o>(</span><span class=s>&#34;com.example.non_existent.ACTION&#34;</span><span class=o>,</span> <span class=n>Uri</span><span class=o>.</span><span class=na>parse</span><span class=o>(</span><span class=s>&#34;13371337&#34;</span><span class=o>););</span>
+</span></span><span class=line><span class=cl><span class=n>startActivity</span><span class=o>(</span><span class=n>in</span><span class=o>);</span>
+</span></span></code></pre></td></tr></table></div></div><p>From the imported library code (e.g. inside the sender application process) after some preliminary error checking, the <code>startActivity</code> method from the <code>ActivityTaskManager</code> system service is called. This service method is responsible to find and start the destination activity if matched and it is part of the <code>system_server</code> services. In order to find target destinations that match a specific intent action (if not explicitly set from the sender), the previously described attributes (<code>mSchemeToFilter</code>, <code>mActionToFilter</code>, ..) are consulted from an internal method:
+<a href="https://cs.android.com/android/platform/superproject/+/android-14.0.0_r37:frameworks/base/services/core/java/com/android/server/IntentResolver.java;l=382" rel=noopener><code>IntentResolver::queryIntent</code></a>.</p><a href=#intentresolverqueryintent><h4 id=intentresolverqueryintent><span class=hanchor arialabel=Anchor># </span>IntentResolver::queryIntent</h4></a><p>This method is reached after multiple calls (see the <a class="internal-link broken"></a> backtrace for all involved methods) and is responsible to loop over mentioned attributes in order to find most suitable destinations. The returned result is a list of candidates (<code>List&lt;R></code>).
+The objective is not as easy to implement: a requested intent can have multiple candidates of any type (matching the MIME type, scheme and data) but need to return results that include everything!</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span><span class=lnt>16
+</span><span class=lnt>17
+</span><span class=lnt>18
+</span><span class=lnt>19
+</span><span class=lnt>20
+</span><span class=lnt>21
+</span><span class=lnt>22
+</span><span class=lnt>23
+</span><span class=lnt>24
+</span><span class=lnt>25
+</span><span class=lnt>26
+</span><span class=lnt>27
+</span><span class=lnt>28
+</span><span class=lnt>29
+</span><span class=lnt>30
+</span><span class=lnt>31
+</span><span class=lnt>32
+</span><span class=lnt>33
+</span><span class=lnt>34
+</span><span class=lnt>35
+</span><span class=lnt>36
+</span><span class=lnt>37
+</span><span class=lnt>38
+</span><span class=lnt>39
+</span><span class=lnt>40
+</span><span class=lnt>41
+</span><span class=lnt>42
+</span><span class=lnt>43
+</span><span class=lnt>44
+</span><span class=lnt>45
+</span><span class=lnt>46
+</span><span class=lnt>47
+</span><span class=lnt>48
+</span><span class=lnt>49
+</span><span class=lnt>50
+</span><span class=lnt>51
+</span><span class=lnt>52
+</span><span class=lnt>53
+</span><span class=lnt>54
+</span><span class=lnt>55
+</span><span class=lnt>56
+</span><span class=lnt>57
+</span><span class=lnt>58
+</span><span class=lnt>59
+</span><span class=lnt>60
+</span><span class=lnt>61
+</span><span class=lnt>62
+</span><span class=lnt>63
+</span><span class=lnt>64
+</span><span class=lnt>65
+</span><span class=lnt>66
+</span><span class=lnt>67
+</span><span class=lnt>68
+</span><span class=lnt>69
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-java data-lang=java><span class=line><span class=cl><span class=kd>protected</span> <span class=kd>final</span> <span class=n>List</span><span class=o>&lt;</span><span class=n>R</span><span class=o>&gt;</span> <span class=nf>queryIntent</span><span class=o>(</span><span class=nd>@NonNull</span> <span class=n>PackageDataSnapshot</span> <span class=n>snapshot</span><span class=o>,</span> <span class=n>Intent</span> <span class=n>intent</span><span class=o>,</span>
+</span></span><span class=line><span class=cl>		<span class=n>String</span> <span class=n>resolvedType</span><span class=o>,</span> <span class=kt>boolean</span> <span class=n>defaultOnly</span><span class=o>,</span> <span class=nd>@UserIdInt</span> <span class=kt>int</span> <span class=n>userId</span><span class=o>,</span> <span class=kt>long</span> <span class=n>customFlags</span><span class=o>)</span> <span class=o>{</span>
+</span></span><span class=line><span class=cl>	<span class=n>String</span> <span class=n>scheme</span> <span class=o>=</span> <span class=n>intent</span><span class=o>.</span><span class=na>getScheme</span><span class=o>();</span>
+</span></span><span class=line><span class=cl>	<span class=n>ArrayList</span><span class=o>&lt;</span><span class=n>R</span><span class=o>&gt;</span> <span class=n>finalList</span> <span class=o>=</span> <span class=k>new</span> <span class=n>ArrayList</span><span class=o>&lt;</span><span class=n>R</span><span class=o>&gt;();</span>
+</span></span><span class=line><span class=cl>	<span class=cm>/* .. */</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>	<span class=n>F</span><span class=o>[]</span> <span class=n>firstTypeCut</span> <span class=o>=</span> <span class=kc>null</span><span class=o>;</span>
+</span></span><span class=line><span class=cl>	<span class=n>F</span><span class=o>[]</span> <span class=n>secondTypeCut</span> <span class=o>=</span> <span class=kc>null</span><span class=o>;</span>
+</span></span><span class=line><span class=cl>	<span class=n>F</span><span class=o>[]</span> <span class=n>thirdTypeCut</span> <span class=o>=</span> <span class=kc>null</span><span class=o>;</span>
+</span></span><span class=line><span class=cl>	<span class=n>F</span><span class=o>[]</span> <span class=n>schemeCut</span> <span class=o>=</span> <span class=kc>null</span><span class=o>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>	<span class=c1>// If the intent includes a MIME type, then we want to collect all of
+</span></span></span><span class=line><span class=cl><span class=c1></span>	<span class=c1>// the filters that match that MIME type.
+</span></span></span><span class=line><span class=cl><span class=c1></span>	<span class=k>if</span> <span class=o>(</span><span class=n>resolvedType</span> <span class=o>!=</span> <span class=kc>null</span><span class=o>)</span> <span class=o>{</span> <span class=c1>// [1]
+</span></span></span><span class=line><span class=cl><span class=c1></span>		<span class=kt>int</span> <span class=n>slashpos</span> <span class=o>=</span> <span class=n>resolvedType</span><span class=o>.</span><span class=na>indexOf</span><span class=o>(</span><span class=sc>&#39;/&#39;</span><span class=o>);</span>
+</span></span><span class=line><span class=cl>		<span class=k>if</span> <span class=o>(</span><span class=n>slashpos</span> <span class=o>&gt;</span> <span class=n>0</span><span class=o>)</span> <span class=o>{</span>
+</span></span><span class=line><span class=cl>			<span class=kd>final</span> <span class=n>String</span> <span class=n>baseType</span> <span class=o>=</span> <span class=n>resolvedType</span><span class=o>.</span><span class=na>substring</span><span class=o>(</span><span class=n>0</span><span class=o>,</span> <span class=n>slashpos</span><span class=o>);</span>
+</span></span><span class=line><span class=cl>			<span class=k>if</span> <span class=o>(!</span><span class=n>baseType</span><span class=o>.</span><span class=na>equals</span><span class=o>(</span><span class=s>&#34;*&#34;</span><span class=o>))</span> <span class=o>{</span>
+</span></span><span class=line><span class=cl>				<span class=k>if</span> <span class=o>(</span><span class=n>resolvedType</span><span class=o>.</span><span class=na>length</span><span class=o>()</span> <span class=o>!=</span> <span class=n>slashpos</span><span class=o>+</span><span class=n>2</span>
+</span></span><span class=line><span class=cl>						<span class=o>||</span> <span class=n>resolvedType</span><span class=o>.</span><span class=na>charAt</span><span class=o>(</span><span class=n>slashpos</span><span class=o>+</span><span class=n>1</span><span class=o>)</span> <span class=o>!=</span> <span class=sc>&#39;*&#39;</span><span class=o>)</span> <span class=o>{</span>
+</span></span><span class=line><span class=cl>					<span class=n>firstTypeCut</span> <span class=o>=</span> <span class=n>mTypeToFilter</span><span class=o>.</span><span class=na>get</span><span class=o>(</span><span class=n>resolvedType</span><span class=o>);</span> <span class=c1>// [2]
+</span></span></span><span class=line><span class=cl><span class=c1></span>					<span class=n>secondTypeCut</span> <span class=o>=</span> <span class=n>mWildTypeToFilter</span><span class=o>.</span><span class=na>get</span><span class=o>(</span><span class=n>baseType</span><span class=o>);</span> <span class=c1>// [4]
+</span></span></span><span class=line><span class=cl><span class=c1></span>				<span class=o>}</span> <span class=k>else</span> <span class=o>{</span>
+</span></span><span class=line><span class=cl>					<span class=c1>// We can match anything with our base type.
+</span></span></span><span class=line><span class=cl><span class=c1></span>					<span class=n>firstTypeCut</span> <span class=o>=</span> <span class=n>mBaseTypeToFilter</span><span class=o>.</span><span class=na>get</span><span class=o>(</span><span class=n>baseType</span><span class=o>);</span> <span class=c1>// [3]
+</span></span></span><span class=line><span class=cl><span class=c1></span>					<span class=n>secondTypeCut</span> <span class=o>=</span> <span class=n>mWildTypeToFilter</span><span class=o>.</span><span class=na>get</span><span class=o>(</span><span class=n>baseType</span><span class=o>);</span> <span class=c1>// [4]
+</span></span></span><span class=line><span class=cl><span class=c1></span>				<span class=o>}</span>
+</span></span><span class=line><span class=cl>				<span class=n>thirdTypeCut</span> <span class=o>=</span> <span class=n>mWildTypeToFilter</span><span class=o>.</span><span class=na>get</span><span class=o>(</span><span class=s>&#34;*&#34;</span><span class=o>);</span>
+</span></span><span class=line><span class=cl>			<span class=o>}</span> <span class=k>else</span> <span class=k>if</span> <span class=o>(</span><span class=n>intent</span><span class=o>.</span><span class=na>getAction</span><span class=o>()</span> <span class=o>!=</span> <span class=kc>null</span><span class=o>)</span> <span class=o>{</span>
+</span></span><span class=line><span class=cl>				<span class=c1>// The intent specified any type ({@literal *}/*).  This
+</span></span></span><span class=line><span class=cl><span class=c1></span>				<span class=c1>// can be a whole heck of a lot of things, so as a first
+</span></span></span><span class=line><span class=cl><span class=c1></span>				<span class=c1>// cut let&#39;s use the action instead.
+</span></span></span><span class=line><span class=cl><span class=c1></span>				<span class=n>firstTypeCut</span> <span class=o>=</span> <span class=n>mTypedActionToFilter</span><span class=o>.</span><span class=na>get</span><span class=o>(</span><span class=n>intent</span><span class=o>.</span><span class=na>getAction</span><span class=o>());</span> <span class=c1>// [5]
+</span></span></span><span class=line><span class=cl><span class=c1></span>			<span class=o>}</span>
+</span></span><span class=line><span class=cl>		<span class=o>}</span>
+</span></span><span class=line><span class=cl>	<span class=o>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>	<span class=k>if</span> <span class=o>(</span><span class=n>scheme</span> <span class=o>!=</span> <span class=kc>null</span><span class=o>)</span> <span class=o>{</span>
+</span></span><span class=line><span class=cl>		<span class=n>schemeCut</span> <span class=o>=</span> <span class=n>mSchemeToFilter</span><span class=o>.</span><span class=na>get</span><span class=o>(</span><span class=n>scheme</span><span class=o>);</span> <span class=c1>// [6]
+</span></span></span><span class=line><span class=cl><span class=c1></span>	<span class=o>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>	<span class=k>if</span> <span class=o>(</span><span class=n>resolvedType</span> <span class=o>==</span> <span class=kc>null</span> <span class=o>&amp;&amp;</span> <span class=n>scheme</span> <span class=o>==</span> <span class=kc>null</span> <span class=o>&amp;&amp;</span> <span class=n>intent</span><span class=o>.</span><span class=na>getAction</span><span class=o>()</span> <span class=o>!=</span> <span class=kc>null</span><span class=o>)</span> <span class=o>{</span>
+</span></span><span class=line><span class=cl>		<span class=n>firstTypeCut</span> <span class=o>=</span> <span class=n>mActionToFilter</span><span class=o>.</span><span class=na>get</span><span class=o>(</span><span class=n>intent</span><span class=o>.</span><span class=na>getAction</span><span class=o>());</span> <span class=c1>// [7]
+</span></span></span><span class=line><span class=cl><span class=c1></span>	<span class=o>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>	<span class=n>FastImmutableArraySet</span><span class=o>&lt;</span><span class=n>String</span><span class=o>&gt;</span> <span class=n>categories</span> <span class=o>=</span> <span class=n>getFastIntentCategories</span><span class=o>(</span><span class=n>intent</span><span class=o>);</span>
+</span></span><span class=line><span class=cl>	<span class=n>Computer</span> <span class=n>computer</span> <span class=o>=</span> <span class=o>(</span><span class=n>Computer</span><span class=o>)</span> <span class=n>snapshot</span><span class=o>;</span>
+</span></span><span class=line><span class=cl>	<span class=k>if</span> <span class=o>(</span><span class=n>firstTypeCut</span> <span class=o>!=</span> <span class=kc>null</span><span class=o>)</span> <span class=o>{</span>
+</span></span><span class=line><span class=cl>		<span class=n>buildResolveList</span><span class=o>(</span><span class=n>computer</span><span class=o>,</span> <span class=n>intent</span><span class=o>,</span> <span class=n>categories</span><span class=o>,</span> <span class=n>debug</span><span class=o>,</span> <span class=n>defaultOnly</span><span class=o>,</span> <span class=n>resolvedType</span><span class=o>,</span>
+</span></span><span class=line><span class=cl>				<span class=n>scheme</span><span class=o>,</span> <span class=n>firstTypeCut</span><span class=o>,</span> <span class=n>finalList</span><span class=o>,</span> <span class=n>userId</span><span class=o>,</span> <span class=n>customFlags</span><span class=o>);</span>
+</span></span><span class=line><span class=cl>	<span class=o>}</span>
+</span></span><span class=line><span class=cl>	<span class=k>if</span> <span class=o>(</span><span class=n>secondTypeCut</span> <span class=o>!=</span> <span class=kc>null</span><span class=o>)</span> <span class=o>{</span>
+</span></span><span class=line><span class=cl>		<span class=n>buildResolveList</span><span class=o>(</span><span class=n>computer</span><span class=o>,</span> <span class=n>intent</span><span class=o>,</span> <span class=n>categories</span><span class=o>,</span> <span class=n>debug</span><span class=o>,</span> <span class=n>defaultOnly</span><span class=o>,</span> <span class=n>resolvedType</span><span class=o>,</span>
+</span></span><span class=line><span class=cl>				<span class=n>scheme</span><span class=o>,</span> <span class=n>secondTypeCut</span><span class=o>,</span> <span class=n>finalList</span><span class=o>,</span> <span class=n>userId</span><span class=o>,</span> <span class=n>customFlags</span><span class=o>);</span>
+</span></span><span class=line><span class=cl>	<span class=o>}</span>
+</span></span><span class=line><span class=cl>	<span class=k>if</span> <span class=o>(</span><span class=n>thirdTypeCut</span> <span class=o>!=</span> <span class=kc>null</span><span class=o>)</span> <span class=o>{</span>
+</span></span><span class=line><span class=cl>		<span class=n>buildResolveList</span><span class=o>(</span><span class=n>computer</span><span class=o>,</span> <span class=n>intent</span><span class=o>,</span> <span class=n>categories</span><span class=o>,</span> <span class=n>debug</span><span class=o>,</span> <span class=n>defaultOnly</span><span class=o>,</span> <span class=n>resolvedType</span><span class=o>,</span>
+</span></span><span class=line><span class=cl>				<span class=n>scheme</span><span class=o>,</span> <span class=n>thirdTypeCut</span><span class=o>,</span> <span class=n>finalList</span><span class=o>,</span> <span class=n>userId</span><span class=o>,</span> <span class=n>customFlags</span><span class=o>);</span>
+</span></span><span class=line><span class=cl>	<span class=o>}</span>
+</span></span><span class=line><span class=cl>	<span class=k>if</span> <span class=o>(</span><span class=n>schemeCut</span> <span class=o>!=</span> <span class=kc>null</span><span class=o>)</span> <span class=o>{</span>
+</span></span><span class=line><span class=cl>		<span class=n>buildResolveList</span><span class=o>(</span><span class=n>computer</span><span class=o>,</span> <span class=n>intent</span><span class=o>,</span> <span class=n>categories</span><span class=o>,</span> <span class=n>debug</span><span class=o>,</span> <span class=n>defaultOnly</span><span class=o>,</span> <span class=n>resolvedType</span><span class=o>,</span>
+</span></span><span class=line><span class=cl>				<span class=n>scheme</span><span class=o>,</span> <span class=n>schemeCut</span><span class=o>,</span> <span class=n>finalList</span><span class=o>,</span> <span class=n>userId</span><span class=o>,</span> <span class=n>customFlags</span><span class=o>);</span>
+</span></span><span class=line><span class=cl>	<span class=o>}</span>
+</span></span><span class=line><span class=cl>	<span class=n>filterResults</span><span class=o>(</span><span class=n>finalList</span><span class=o>);</span>
+</span></span><span class=line><span class=cl>	<span class=n>sortResults</span><span class=o>(</span><span class=n>finalList</span><span class=o>);</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>	<span class=cm>/* .. */</span>
+</span></span><span class=line><span class=cl>	<span class=k>return</span> <span class=n>finalList</span><span class=o>;</span>
+</span></span><span class=line><span class=cl><span class=o>}</span>
+</span></span></code></pre></td></tr></table></div></div><p>The <code>queryIntent</code> function satisfy this logic by using multiple &ldquo;cuts&rdquo;. It starts from the first cut that is related to MIME types[1]: if the intent matches some MIME type, the matching candidates are extracted from <code>Full MIME Types</code> [2], <code>Base MIME Types</code> [3] and <code>Wild Mime Types</code> [4] relative members. An interesting behavior is for the <code>Typed Action</code> filters[5]: If the primary part of the MIME type is <code>*</code> (e.g. <code>*/*</code>) then, since the target can be anything and is too much generic, the action is used as a discrimination.
+Then, if the <code>scheme</code> is specified, <code>schemes</code> candidate filters are retrieved [6] and the same (if the <code>scheme</code> is null) for the <code>Non-data actions</code>[7]. Every cut candidates are then confirmed from the <code>buildResolveList</code> to match all requested intent characteristics with the
+<a href="https://cs.android.com/android/platform/superproject/+/android-14.0.0_r37:frameworks/base/services/core/java/com/android/server/IntentResolver.java;l=773" rel=noopener><code>intentFilter.match(..)</code></a> call
+and the final list is returned in the <code>finalList</code> variable.</p><a href=#sendbroadcast><h3 id=sendbroadcast><span class=hanchor arialabel=Anchor># </span>sendBroadcast</h3></a><p>The <code>senBroadcast</code> resolution logic is really similar to the <code>startActivity</code> function with a major difference: the requested method and service.</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt>1
+</span><span class=lnt>2
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-java data-lang=java><span class=line><span class=cl><span class=n>Intent</span> <span class=n>in</span> <span class=o>=</span> <span class=k>new</span> <span class=n>Intent</span><span class=o>(</span><span class=s>&#34;com.example.non_existent.ACTION&#34;</span><span class=o>,</span> <span class=n>Uri</span><span class=o>.</span><span class=na>parse</span><span class=o>(</span><span class=s>&#34;13371337&#34;</span><span class=o>););</span>
+</span></span><span class=line><span class=cl><span class=n>sendBroadcast</span><span class=o>(</span><span class=n>in</span><span class=o>);</span>
+</span></span></code></pre></td></tr></table></div></div><p>The involved service is the <code>ActivityManager</code> with the <code>broadcastIntentWithFeature</code> service method. As can be seen from the stack trace at the bottom (<a class="internal-link broken"></a>) the <code>IntentResolver::queryIntent</code> method is called from the <code>ComponentResolver</code> class and the logic is the same one describer earlier.</p><a href=#system-services-and-other-methods><h3 id=system-services-and-other-methods><span class=hanchor arialabel=Anchor># </span>System Services and other methods</h3></a><p>We have treated two common methods but there are multiple entry points to resolve intents for different types of components, however the logic is always the same: registered intents are cycled through the <code>IntentResolver::queryIntent</code> method. For example, the <code>queryIntentActivities</code> method is another commonly used method, exposed from the <code>PackageManager</code> system service, to resolve intents. AIDLs (Android Interface Definition Language) for the described services can be consulted there for more exposed functionalities:
+<a href="https://cs.android.com/android/platform/superproject/main/+/main:frameworks/base/core/java/android/app/IActivityTaskManager.aidl;l=95;bpv=0;bpt=0?q=IActivityTaskManager&ss=android/platform/superproject/main" rel=noopener><code>IActivityTaskManager.aidl</code></a>,
+<a href="https://cs.android.com/android/platform/superproject/main/+/main:frameworks/base/core/java/android/app/IActivityManager.aidl;l=1;bpv=0;bpt=0?q=android.app.IActivityManager&sq=&ss=android/platform/superproject/main" rel=noopener><code>IActivityManager.aidl</code></a> and
+<a href="https://cs.android.com/android/platform/superproject/main/+/main:frameworks/base/core/java/android/content/pm/IPackageManager.aidl;l=1;bpv=0;bpt=0?q=IPackageManager.aidl-&ss=android/platform/superproject/main" rel=noopener><code>PackageManager.aidl</code></a></p><a href=#dumpsys><h2 id=dumpsys><span class=hanchor arialabel=Anchor># </span>dumpsys</h2></a><p>The <code>dumpsys</code> utility is extremely helpful to list all registered intent filters in the system through the <code>package</code> argument. It offers the internal classification structure as output and the dump logic can be found from the previously mentioned
+<a href="https://cs.android.com/android/platform/superproject/+/android-14.0.0_r37:frameworks/base/services/core/java/com/android/server/IntentResolver.java;l=286" rel=noopener><code>IntentResolver::dump</code></a> method. The output contains the &ldquo;Resolver Table&rdquo; for each component type (activity, receiver, service and provider) with the described internal classification (<code>Full MIME Types</code>, <code>Non-data actions</code>, ..). For example, the <code>adb shell dumpsys package</code> returns a similar output:</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-bash data-lang=bash><span class=line><span class=cl>$ adb shell dumpsys package
+</span></span><span class=line><span class=cl><span class=c1># ...</span>
+</span></span><span class=line><span class=cl>Activity Resolver Table:
+</span></span><span class=line><span class=cl>  Full MIME Types:
+</span></span><span class=line><span class=cl>      application/pkix-cert:
+</span></span><span class=line><span class=cl>        9f5fd74 com.android.certinstaller/.CertInstallerMain
+</span></span><span class=line><span class=cl>      x-mixmedia/*:
+</span></span><span class=line><span class=cl>        6f2b72d com.google.android.bluetooth/com.android.bluetooth.opp.BluetoothOppLauncherActivity
+</span></span><span class=line><span class=cl>      vnd.android.cursor.dir/raw_contact:
+</span></span><span class=line><span class=cl>        58bbd45 com.google.android.contacts/com.android.contacts.activities.PeopleActivity
+</span></span><span class=line><span class=cl>        ac07323 com.google.android.contacts/com.android.contacts.activities.CompactContactEditorActivity
+</span></span><span class=line><span class=cl>        d430587 com.google.android.contacts/com.google.android.apps.contacts.editorlite.ContactsEditorlite
+</span></span><span class=line><span class=cl>      application/vnd.google-apps.map:
+</span></span><span class=line><span class=cl>        169295e com.google.android.apps.docs/.app.OpenSafUrlActivity
+</span></span><span class=line><span class=cl><span class=c1># ....</span>
+</span></span></code></pre></td></tr></table></div></div><p>It is possible to add the <code>-f</code> option to print details for all specific filters such as declared actions, categories and data. In order to limit the output to a specific app, the application name can be specified: <code>adb shell dumpsys package com.target.app</code>.</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-bash data-lang=bash><span class=line><span class=cl>$ adb shell dumpsys package com.target.pp
+</span></span><span class=line><span class=cl><span class=c1># ...</span>
+</span></span><span class=line><span class=cl>  MIME Typed Actions:
+</span></span><span class=line><span class=cl>      android.intent.action.VIEW:
+</span></span><span class=line><span class=cl>        9f5fd74 com.android.certinstaller/.CertInstallerMain filter fa0d312
+</span></span><span class=line><span class=cl>          Action: <span class=s2>&#34;android.intent.action.VIEW&#34;</span>
+</span></span><span class=line><span class=cl>          Category: <span class=s2>&#34;android.intent.category.DEFAULT&#34;</span>
+</span></span><span class=line><span class=cl>          StaticType: <span class=s2>&#34;application/x-x509-ca-cert&#34;</span>
+</span></span><span class=line><span class=cl>          StaticType: <span class=s2>&#34;application/x-x509-user-cert&#34;</span>
+</span></span><span class=line><span class=cl>          StaticType: <span class=s2>&#34;application/x-x509-server-cert&#34;</span>
+</span></span><span class=line><span class=cl>          StaticType: <span class=s2>&#34;application/x-pkcs12&#34;</span>
+</span></span><span class=line><span class=cl>          StaticType: <span class=s2>&#34;application/x-pem-file&#34;</span>
+</span></span><span class=line><span class=cl>          StaticType: <span class=s2>&#34;application/pkix-cert&#34;</span>
+</span></span><span class=line><span class=cl>          StaticType: <span class=s2>&#34;application/x-wifi-config&#34;</span>
+</span></span><span class=line><span class=cl><span class=c1># ...</span>
+</span></span></code></pre></td></tr></table></div></div><a href=#backtraces><h2 id=backtraces><span class=hanchor arialabel=Anchor># </span>Backtraces</h2></a><a href=#backtrace-startactivity><h3 id=backtrace-startactivity><span class=hanchor arialabel=Anchor># </span>Backtrace: startActivity</h3></a><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span><span class=lnt>16
+</span><span class=lnt>17
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-java data-lang=java><span class=line><span class=cl><span class=n>at</span> <span class=n>com</span><span class=o>.</span><span class=na>android</span><span class=o>.</span><span class=na>server</span><span class=o>.</span><span class=na>IntentResolver</span><span class=o>.</span><span class=na>queryIntent</span><span class=o>(</span><span class=n>Native</span> <span class=n>Method</span><span class=o>)</span>
+</span></span><span class=line><span class=cl><span class=n>at</span> <span class=n>com</span><span class=o>.</span><span class=na>android</span><span class=o>.</span><span class=na>server</span><span class=o>.</span><span class=na>pm</span><span class=o>.</span><span class=na>resolution</span><span class=o>.</span><span class=na>ComponentResolver$ActivityIntentResolver</span><span class=o>.</span><span class=na>queryIntent</span><span class=o>(</span><span class=n>ComponentResolver</span><span class=o>.</span><span class=na>java</span><span class=o>:</span><span class=n>985</span><span class=o>)</span>
+</span></span><span class=line><span class=cl><span class=n>at</span> <span class=n>com</span><span class=o>.</span><span class=na>android</span><span class=o>.</span><span class=na>server</span><span class=o>.</span><span class=na>pm</span><span class=o>.</span><span class=na>resolution</span><span class=o>.</span><span class=na>ComponentResolverBase</span><span class=o>.</span><span class=na>queryActivities</span><span class=o>(</span><span class=n>ComponentResolverBase</span><span class=o>.</span><span class=na>java</span><span class=o>:</span><span class=n>130</span><span class=o>)</span>
+</span></span><span class=line><span class=cl><span class=n>at</span> <span class=n>com</span><span class=o>.</span><span class=na>android</span><span class=o>.</span><span class=na>server</span><span class=o>.</span><span class=na>pm</span><span class=o>.</span><span class=na>ComputerEngine</span><span class=o>.</span><span class=na>queryIntentActivitiesInternalBody</span><span class=o>(</span><span class=n>ComputerEngine</span><span class=o>.</span><span class=na>java</span><span class=o>:</span><span class=n>756</span><span class=o>)</span>
+</span></span><span class=line><span class=cl><span class=n>at</span> <span class=n>com</span><span class=o>.</span><span class=na>android</span><span class=o>.</span><span class=na>server</span><span class=o>.</span><span class=na>pm</span><span class=o>.</span><span class=na>ComputerEngine</span><span class=o>.</span><span class=na>queryIntentActivitiesInternal</span><span class=o>(</span><span class=n>ComputerEngine</span><span class=o>.</span><span class=na>java</span><span class=o>:</span><span class=n>584</span><span class=o>)</span>
+</span></span><span class=line><span class=cl><span class=n>at</span> <span class=n>com</span><span class=o>.</span><span class=na>android</span><span class=o>.</span><span class=na>server</span><span class=o>.</span><span class=na>pm</span><span class=o>.</span><span class=na>ResolveIntentHelper</span><span class=o>.</span><span class=na>resolveIntentInternal</span><span class=o>(</span><span class=n>ResolveIntentHelper</span><span class=o>.</span><span class=na>java</span><span class=o>:</span><span class=n>190</span><span class=o>)</span>
+</span></span><span class=line><span class=cl><span class=n>at</span> <span class=n>com</span><span class=o>.</span><span class=na>android</span><span class=o>.</span><span class=na>server</span><span class=o>.</span><span class=na>pm</span><span class=o>.</span><span class=na>PackageManagerInternalBase</span><span class=o>.</span><span class=na>resolveIntentExported</span><span class=o>(</span><span class=n>PackageManagerInternalBase</span><span class=o>.</span><span class=na>java</span><span class=o>:</span><span class=n>476</span><span class=o>)</span>
+</span></span><span class=line><span class=cl><span class=n>at</span> <span class=n>com</span><span class=o>.</span><span class=na>android</span><span class=o>.</span><span class=na>server</span><span class=o>.</span><span class=na>wm</span><span class=o>.</span><span class=na>ActivityTaskSupervisor</span><span class=o>.</span><span class=na>resolveIntent</span><span class=o>(</span><span class=n>ActivityTaskSupervisor</span><span class=o>.</span><span class=na>java</span><span class=o>:</span><span class=n>766</span><span class=o>)</span>
+</span></span><span class=line><span class=cl><span class=n>at</span> <span class=n>com</span><span class=o>.</span><span class=na>android</span><span class=o>.</span><span class=na>server</span><span class=o>.</span><span class=na>wm</span><span class=o>.</span><span class=na>ActivityStarter$Request</span><span class=o>.</span><span class=na>resolveActivity</span><span class=o>(</span><span class=n>ActivityStarter</span><span class=o>.</span><span class=na>java</span><span class=o>:</span><span class=n>568</span><span class=o>)</span>
+</span></span><span class=line><span class=cl><span class=n>at</span> <span class=n>com</span><span class=o>.</span><span class=na>android</span><span class=o>.</span><span class=na>server</span><span class=o>.</span><span class=na>wm</span><span class=o>.</span><span class=na>ActivityStarter</span><span class=o>.</span><span class=na>execute</span><span class=o>(</span><span class=n>ActivityStarter</span><span class=o>.</span><span class=na>java</span><span class=o>:</span><span class=n>707</span><span class=o>)</span>
+</span></span><span class=line><span class=cl><span class=n>at</span> <span class=n>com</span><span class=o>.</span><span class=na>android</span><span class=o>.</span><span class=na>server</span><span class=o>.</span><span class=na>wm</span><span class=o>.</span><span class=na>ActivityTaskManagerService</span><span class=o>.</span><span class=na>startActivityAsUser</span><span class=o>(</span><span class=n>ActivityTaskManagerService</span><span class=o>.</span><span class=na>java</span><span class=o>:</span><span class=n>1288</span><span class=o>)</span>
+</span></span><span class=line><span class=cl><span class=n>at</span> <span class=n>com</span><span class=o>.</span><span class=na>android</span><span class=o>.</span><span class=na>server</span><span class=o>.</span><span class=na>wm</span><span class=o>.</span><span class=na>ActivityTaskManagerService</span><span class=o>.</span><span class=na>startActivityAsUser</span><span class=o>(</span><span class=n>ActivityTaskManagerService</span><span class=o>.</span><span class=na>java</span><span class=o>:</span><span class=n>1239</span><span class=o>)</span>
+</span></span><span class=line><span class=cl><span class=n>at</span> <span class=n>com</span><span class=o>.</span><span class=na>android</span><span class=o>.</span><span class=na>server</span><span class=o>.</span><span class=na>wm</span><span class=o>.</span><span class=na>ActivityTaskManagerService</span><span class=o>.</span><span class=na>startActivity</span><span class=o>(</span><span class=n>ActivityTaskManagerService</span><span class=o>.</span><span class=na>java</span><span class=o>:</span><span class=n>1214</span><span class=o>)</span>
+</span></span><span class=line><span class=cl><span class=n>at</span> <span class=n>android</span><span class=o>.</span><span class=na>app</span><span class=o>.</span><span class=na>IActivityTaskManager$Stub</span><span class=o>.</span><span class=na>onTransact</span><span class=o>(</span><span class=n>IActivityTaskManager</span><span class=o>.</span><span class=na>java</span><span class=o>:</span><span class=n>929</span><span class=o>)</span>
+</span></span><span class=line><span class=cl><span class=n>at</span> <span class=n>com</span><span class=o>.</span><span class=na>android</span><span class=o>.</span><span class=na>server</span><span class=o>.</span><span class=na>wm</span><span class=o>.</span><span class=na>ActivityTaskManagerService</span><span class=o>.</span><span class=na>onTransact</span><span class=o>(</span><span class=n>ActivityTaskManagerService</span><span class=o>.</span><span class=na>java</span><span class=o>:</span><span class=n>5511</span><span class=o>)</span>
+</span></span><span class=line><span class=cl><span class=n>at</span> <span class=n>android</span><span class=o>.</span><span class=na>os</span><span class=o>.</span><span class=na>Binder</span><span class=o>.</span><span class=na>execTransactInternal</span><span class=o>(</span><span class=n>Binder</span><span class=o>.</span><span class=na>java</span><span class=o>:</span><span class=n>1339</span><span class=o>)</span>
+</span></span><span class=line><span class=cl><span class=n>at</span> <span class=n>android</span><span class=o>.</span><span class=na>os</span><span class=o>.</span><span class=na>Binder</span><span class=o>.</span><span class=na>execTransact</span><span class=o>(</span><span class=n>Binder</span><span class=o>.</span><span class=na>java</span><span class=o>:</span><span class=n>1275</span><span class=o>)</span>
+</span></span></code></pre></td></tr></table></div></div><a href=#backtrace-sendbroadcast><h3 id=backtrace-sendbroadcast><span class=hanchor arialabel=Anchor># </span>Backtrace: sendBroadcast</h3></a><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-java data-lang=java><span class=line><span class=cl><span class=n>at</span> <span class=n>com</span><span class=o>.</span><span class=na>android</span><span class=o>.</span><span class=na>server</span><span class=o>.</span><span class=na>IntentResolver</span><span class=o>.</span><span class=na>queryIntent</span><span class=o>(</span><span class=n>Native</span> <span class=n>Method</span><span class=o>)</span>
+</span></span><span class=line><span class=cl><span class=n>at</span> <span class=n>com</span><span class=o>.</span><span class=na>android</span><span class=o>.</span><span class=na>server</span><span class=o>.</span><span class=na>pm</span><span class=o>.</span><span class=na>resolution</span><span class=o>.</span><span class=na>ComponentResolver$ActivityIntentResolver</span><span class=o>.</span><span class=na>queryIntent</span><span class=o>(</span><span class=n>ComponentResolver</span><span class=o>.</span><span class=na>java</span><span class=o>:</span><span class=n>985</span><span class=o>)</span>
+</span></span><span class=line><span class=cl><span class=n>at</span> <span class=n>com</span><span class=o>.</span><span class=na>android</span><span class=o>.</span><span class=na>server</span><span class=o>.</span><span class=na>pm</span><span class=o>.</span><span class=na>resolution</span><span class=o>.</span><span class=na>ComponentResolverBase</span><span class=o>.</span><span class=na>queryActivities</span><span class=o>(</span><span class=n>ComponentResolverBase</span><span class=o>.</span><span class=na>java</span><span class=o>:</span><span class=n>130</span><span class=o>)</span>
+</span></span><span class=line><span class=cl><span class=n>at</span> <span class=n>com</span><span class=o>.</span><span class=na>android</span><span class=o>.</span><span class=na>server</span><span class=o>.</span><span class=na>pm</span><span class=o>.</span><span class=na>ComputerEngine</span><span class=o>.</span><span class=na>queryIntentActivitiesInternalBody</span><span class=o>(</span><span class=n>ComputerEngine</span><span class=o>.</span><span class=na>java</span><span class=o>:</span><span class=n>756</span><span class=o>)</span>
+</span></span><span class=line><span class=cl><span class=n>at</span> <span class=n>com</span><span class=o>.</span><span class=na>android</span><span class=o>.</span><span class=na>server</span><span class=o>.</span><span class=na>pm</span><span class=o>.</span><span class=na>ComputerEngine</span><span class=o>.</span><span class=na>queryIntentActivitiesInternal</span><span class=o>(</span><span class=n>ComputerEngine</span><span class=o>.</span><span class=na>java</span><span class=o>:</span><span class=n>584</span><span class=o>)</span>
+</span></span><span class=line><span class=cl><span class=n>at</span> <span class=n>com</span><span class=o>.</span><span class=na>android</span><span class=o>.</span><span class=na>server</span><span class=o>.</span><span class=na>pm</span><span class=o>.</span><span class=na>ComputerEngine</span><span class=o>.</span><span class=na>queryIntentActivitiesInternal</span><span class=o>(</span><span class=n>ComputerEngine</span><span class=o>.</span><span class=na>java</span><span class=o>:</span><span class=n>628</span><span class=o>)</span>
+</span></span><span class=line><span class=cl><span class=n>at</span> <span class=n>com</span><span class=o>.</span><span class=na>android</span><span class=o>.</span><span class=na>server</span><span class=o>.</span><span class=na>pm</span><span class=o>.</span><span class=na>IPackageManagerBase</span><span class=o>.</span><span class=na>queryIntentActivities</span><span class=o>(</span><span class=n>IPackageManagerBase</span><span class=o>.</span><span class=na>java</span><span class=o>:</span><span class=n>1000</span><span class=o>)</span>
+</span></span><span class=line><span class=cl><span class=n>at</span> <span class=n>android</span><span class=o>.</span><span class=na>content</span><span class=o>.</span><span class=na>pm</span><span class=o>.</span><span class=na>IPackageManager$Stub</span><span class=o>.</span><span class=na>onTransact</span><span class=o>(</span><span class=n>IPackageManager</span><span class=o>.</span><span class=na>java</span><span class=o>:</span><span class=n>2275</span><span class=o>)</span>
+</span></span><span class=line><span class=cl><span class=n>at</span> <span class=n>com</span><span class=o>.</span><span class=na>android</span><span class=o>.</span><span class=na>server</span><span class=o>.</span><span class=na>pm</span><span class=o>.</span><span class=na>PackageManagerService$IPackageManagerImpl</span><span class=o>.</span><span class=na>onTransact</span><span class=o>(</span><span class=n>PackageManagerService</span><span class=o>.</span><span class=na>java</span><span class=o>:</span><span class=n>6334</span><span class=o>)</span>
+</span></span><span class=line><span class=cl><span class=n>at</span> <span class=n>android</span><span class=o>.</span><span class=na>os</span><span class=o>.</span><span class=na>Binder</span><span class=o>.</span><span class=na>execTransactInternal</span><span class=o>(</span><span class=n>Binder</span><span class=o>.</span><span class=na>java</span><span class=o>:</span><span class=n>1339</span><span class=o>)</span>
+</span></span><span class=line><span class=cl><span class=n>at</span> <span class=n>android</span><span class=o>.</span><span class=na>os</span><span class=o>.</span><span class=na>Binder</span><span class=o>.</span><span class=na>execTransact</span><span class=o>(</span><span class=n>Binder</span><span class=o>.</span><span class=na>java</span><span class=o>:</span><span class=n>1275</span><span class=o>)</span>
+</span></span></code></pre></td></tr></table></div></div><a href=#conclusion><h2 id=conclusion><span class=hanchor arialabel=Anchor># </span>Conclusion</h2></a><p>We have covered the internal intent resolution process that deals with the <code>&lt;intent-filter></code> package declaration, going through involved system services and the internal AOSP codebase. In the next blog post we will cover Deep and App linking in more details due to its strict relation with the the intent declaration and its interesting attack surface.</p><a href=#references><h2 id=references><span class=hanchor arialabel=Anchor># </span>References</h2></a><ul><li><a href=https://cs.android.com/ rel=noopener>https://cs.android.com/</a></li><li><a href=https://developer.android.com/ rel=noopener>https://developer.android.com/</a></li></ul></article><hr><div class=page-end id=footer><div class=backlinks-container><h3>Backlinks</h3><ul class=backlinks><li><a href=/ data-ctx="notes/Android Deep Dive - Implicit Intents" data-src=/ class=internal-link>👾 KIKS.</a></li></ul></div><div><script src=https://cdn.jsdelivr.net/npm/d3@6.7.0/dist/d3.min.js integrity="sha256-+7jaYCp29O1JusNWHaYtgUn6EhuP0VaFuswhNV06MyI=" crossorigin=anonymous></script><h3>Interactive Graph</h3><div id=graph-container></div><style>:root{--g-node:var(--secondary);--g-node-active:var(--primary);--g-node-inactive:var(--visited);--g-link:var(--outlinegray);--g-link-active:#5a7282}</style><script src=https://1day.dev/js/graph.abd4bc2af3869a96524d7d23b76152c7.js></script></div></div><div id=contact_buttons><footer><p>Powered by <a href=https://github.com/jackyzha0/quartz>Quartz</a>, © 2025</p><ul><li><a href=https://1day.dev/>Home</a></li><li><a href=https://twitter.com/kiks7_7>Twitter</a></li><li><a href=https://github.com/kiks7>Github</a></li></ul></footer></div></div></body></html>
