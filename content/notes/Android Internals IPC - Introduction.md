@@ -13,8 +13,7 @@ In the last few months I was studying Android Internals in order to perform some
 
 
 During this studying process, I took a lot of messy notes, so after 1/2 months of not working anymore on Android, I took them back, put them in order, studied again (adding more messy notes) and decided to write this little series of articles. So, especially the second and the third sections contain theory concepts, high level functionalities and a lot of source code references. Parts of these articles can be considered as a ‘Code Walkthrough’, so having the actual Android Source Code (the online Android repository is enough) is highly suggested to understand the flow.
-I didn’t want to repost other people's work, so this ‘code walkthrough’ is something different that honestly could help me when I was starting on it, so I hope it can help others too. It could not be perfect, so feel free to appoints something at <alessandro [at] hacktivesecurity.com> and I will of course consider them.
-By the way, all references are at the bottom of each article.
+I didn’t want to repost other people's work, so this "code walkthrough" is something different that honestly could help me when I was starting on it, so I hope it can help others too. However, all references are at the bottom of each article.
 
 In this first section, I will introduce some basic Android concepts that will be useful for next chapters. The second will deepen Binder interactions and the servicemanager. And last, but not least, the client and service IPC implementation and usage.
 
