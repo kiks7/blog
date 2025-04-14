@@ -619,7 +619,7 @@ startActivity(in);
 
 And the result is ...
 
-![[des-poc.png]]
+![[notes/images/deserial/des-poc.png]]
 
 ## Conclusion
 In this blog post we deep dived into the deserialization mechanism of the critical and common `getSerializable` API showcasing its internals, from a source code point of view, and demonstrating its potential security impact.

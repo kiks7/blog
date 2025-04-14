@@ -3,6 +3,7 @@ title: 👾 KIKS.
 enableToc: false
 ---
 
+## Content
 - [[notes/Android Deserialization Deep Dive]]
 - [[notes/Android Deep Dive - Deep and App Linking]]
 - [[notes/Android Deep Dive - Implicit Intents]]
