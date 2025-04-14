@@ -3,8 +3,12 @@ title: 👾 KIKS.
 enableToc: false
 ---
 
+- [[notes/Android Deserialization Deep Dive]]
 - [[notes/Android Deep Dive - Deep and App Linking]]
 - [[notes/Android Deep Dive - Implicit Intents]]
+- [[notes/Not All Roads Lead to PWN2OWN - CGI Fuzzing, AFL and ASAN (Part 3)]]
+- [[notes/Not All Roads Lead to PWN2OWN - Firmware Reverse Engineering (Part 2)]]
+- [[notes/Not All Roads Lead to PWN2OWN - Hardware Hacking (Part 1)]]
 - [[notes/Exploiting a Quarantine UAF Mitigation on a Custom Allocator Challenge]]
 - [[notes/A Reverse Engineering Journey Walkthrough]]
 - [[notes/DirtyCred File Exploitation applied on an io_uring UAF - CVE-2022-2602]]
