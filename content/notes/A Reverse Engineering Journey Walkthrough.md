@@ -809,7 +809,6 @@ An alternative solution to retrieve function signatures for statically linked li
 ## Conclusion
 Hope you have enjoyed this RE journey. In the next blog post we are going to release the write-up for the binary exploitation challenge too that involves a custom allocator specifically written for that challenge! Stay tuned and happy hacking!
 
-Interested in more CTFs like this one to prove your skills? Check out [pwnx.io](https://pwnx.io/)!
 ## Appendix
 ### The cleaned code
 ```C
