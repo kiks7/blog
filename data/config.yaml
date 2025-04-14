@@ -7,7 +7,7 @@ enableCodeBlockTitle: true
 enableCodeBlockCopy: true
 enableCallouts: true
 enableSPA: true
-enableFooter: true
+enableFooter: false
 enableContextualBacklinks: false
 enableRecentNotes: false
 enableGitHubEdit: false
@@ -23,3 +23,5 @@ links:
     link: https://twitter.com/kiks7_7
   - link_name: Github
     link: https://github.com/kiks7
+  - link_name: Linkedin
+    link: https://linkedin.com/in/alessandro-groppo-1a0429146
