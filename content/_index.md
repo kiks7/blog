@@ -19,7 +19,7 @@ enableToc: false
 - [[notes/Linux Kernel DirtyCred File Exploitation applied on an io_uring UAF - CVE-2022-2602]]
 - [[notes/Linux Kernel Exploit Development - CVE-2020-27786]]
 - [[notes/Hunting for Linux Kernel Public Vulnerabilities]]
-- [[notes/KRWX - Kernel Read Write Execute]]
+- [[notes/Kernel Read Write Execute - KRWX]]
 - [[notes/Android Inter-Process Communication - Binder and Service Manager Perspective - Part 2]]
 - [[notes/Android Inter-Process Communication - Introduction - Part 1]]
 - [[notes/Owncloud Multiple Vulnerabilities]]
