@@ -1,5 +1,5 @@
 ---
-title:  "Owncloud Multiple Vulnerabilities (CSRF, SSRF and Information Leak)"
+title:  "Owncloud Multiple Vulnerabilities"
 date:   2020-07-26 00:00:00 +0100
 tags:
 - web
@@ -7,7 +7,8 @@ tags:
 
 ## Introduction
 During the research time in Hacktive Security I discovered several flaws in the [owncloud](https://owncloud.org/) product.
-<br>Owncloud is an open-source cloud service similar to Google Drive. It is a good and popular piece of software and it was strange that the last CVE was from the far 2017 (2 years ago).So, we started looking at it and we disclosed 3 vulnerabilities related to the file sharing context, for sure a good attack vector.
+
+Owncloud is an open-source cloud service similar to Google Drive. It is a good and popular piece of software and it was strange that the last CVE was from the far 2017 (2 years ago).So, we started looking at it and we disclosed 3 vulnerabilities related to the file sharing context, for sure a good attack vector.
 
 What I discovered could **compromise user's root folder** (read/write) via *CSRF*, cause an **authenticated Denial of Service** or **interact with local services** (*SSRF*) and **bypass password protected images**.
 

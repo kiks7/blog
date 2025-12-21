@@ -1,5 +1,5 @@
 ---
-title:  "Not All Roads Lead to PWN2OWN - Firmware Reverse Engineering (Part 2)"
+title:  "Not All Roads Lead to PWN2OWN: Firmware Reverse Engineering - Part 2"
 date:   2024-12-07 00:00:00 +0100
 tags:
 - Reverse Engineering

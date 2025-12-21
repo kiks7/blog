@@ -7,7 +7,7 @@ tags:
 
 ## Introduction
 
-During one of research activities in [Hacktive Security](http://hacktivesecurity.com/), we discovered an **undisclosed PHP Object Injection** on Joomla CMS from the 3.0.0 release to the 3.4.6 (releases from 2012 to December 2015) that leads to Remote Code Execution.
+During one of the research activities in [Hacktive Security](http://hacktivesecurity.com/), we discovered an **undisclosed PHP Object Injection** on Joomla CMS from the 3.0.0 release to the 3.4.6 (releases from 2012 to December 2015) that leads to Remote Code Execution.
 A PHP Object Injection was discovered in the wild and patched in the 3.4.5 version (CVE-2015-8562), however, this vulnerability depends also a lot on the PHP release installed becoming not really trusty for all environments.
 
 Comparing this RCE with CVE-2015-8562:

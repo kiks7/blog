@@ -1,18 +1,18 @@
 ---
-title:  "Android Deserialization Deep Dive"
-date:   2025-02-29 00:00:00 +0100
+title: Android Internals Deep Dive - Deserialization
+date: 2025-02-29 00:00:00 +0100
 tags:
-- Android
-- Reverse Engineering
+  - Android
+  - Reverse Engineering
 ---
 ## Introduction
-Serialization and deserialization mechanisms are always risky operations from a security point of view. In most languages and frameworks, if an attacker is able to deserialize arbitrary input (or just corrupt it as we have demonstrated years ago with the [Rusty Joomla RCE](https://1day.dev/notes/Rusty-Joomla-Remote-Code-Execution)) the impact is usually the most critical: Remote Code Execution. Without re-explaining the wheel, since there are already multiple good resources online that explains the basic concepts of insecure deserialization issues, we would like to put our attention into an interesting android API and class: `getSerializableExtra` and `Serializable`.
+Serialization and deserialization mechanisms are always risky operations from a security point of view. In most languages and frameworks, if an attacker is able to deserialize arbitrary input (or just corrupt it as we have demonstrated years ago with the [Rusty Joomla RCE](https://1day.dev/notes/Rusty-Joomla-Remote-Code-Execution)) the impact is usually the most critical: Remote Code Execution. Without re-explaining the wheel, since there are already multiple good resources online that explain the basic concepts of insecure deserialization issues, we would like to put our attention into an interesting android API and class: `getSerializableExtra` and `Serializable`.
 
 ## `getSerializableExtra` introduction
-The [`getSerializableExtra`](<https://developer.android.com/reference/android/content/Intent#getSerializableExtra(java.lang.String)>) API, from the [`Intent`](<https://developer.android.com/reference/android/content/Intent#getSerializableExtra(java.lang.String,%20java.lang.Class%3CT%3E)>) class, permits to retrieve a [`Serializable`](https://developer.android.com/reference/java/io/Serializable) object through an extra parameter of a receiving Intent and, if the component is exported and enabled, it can represents an interesting attack surface from an attacker point of view. The `getSerializableExtra(String name)` has been deprecated in Android API level 33 (Android 13) in favor of the type safer `getSerializableExtra(String name, Class<T> clazz)`. The [`Serializable`](https://developer.android.com/reference/java/io/Serializable) class documentation, that enables object deserialization, contains the following bold text:
+The [`getSerializableExtra`](<https://developer.android.com/reference/android/content/Intent#getSerializableExtra(java.lang.String)>) API, from the [`Intent`](<https://developer.android.com/reference/android/content/Intent#getSerializableExtra(java.lang.String,%20java.lang.Class%3CT%3E)>) class, permits to retrieve a [`Serializable`](https://developer.android.com/reference/java/io/Serializable) object through an extra parameter of a receiving Intent and, if the component is exported and enabled, it can represents an interesting attack surface from an attacker point of view. The `getSerializableExtra(String name)` has been deprecated in Android API level 33 (Android 13) in favor of the type-safer `getSerializableExtra(String name, Class<T> clazz)`. The [`Serializable`](https://developer.android.com/reference/java/io/Serializable) class documentation, that enables object deserialization, contains the following bold text:
 > **Warning: Deserialization of untrusted data is inherently dangerous and should be avoided. Untrusted data should be carefully validated.**
 
-Since we already know the generic risks of deserializing an arbitrary input object, the objective of this deep dive is to understand the real consequences of calling `getSerializableExtra` on arbitrary input with and without the type safer parameter.
+Since we already know the generic risks of deserializing an arbitrary input object, the objective of this deep dive is to understand the real consequences of calling `getSerializableExtra` on arbitrary input with and without the type-safer parameter.
 
 ## `getSerializableExtra` internal code overview
 ### First steps
@@ -72,12 +72,12 @@ final <T> T getValueAt(int i, @Nullable Class<T> clazz, @Nullable Class<?>... it
 }
 ```
 
-`BaseBundle::getSerializable` is the one responsible to retrieve the value from the received Intent (or at this level is better to define it as a [`Parcel`](https://developer.android.com/reference/android/os/Parcel) object) and it returns the object casted to `Serializable`. This flow is really similar to the retrieval of other parameter types. If you see the `getString`, `getCharSequence` or `getDobule` methods they act in a similar way: they retrieve a generic `Object` from `mMap.getKey()` and then return its type through casting (e.g. `return (String) o)`). 
+`BaseBundle::getSerializable` is the one responsible to retrieve the value from the received Intent (or at this level is better to define it as a [`Parcel`](https://developer.android.com/reference/android/os/Parcel) object) and it returns the object casted to `Serializable`. This flow is really similar to the retrieval of other parameter types. If you see the `getString`, `getCharSequence` or `getDobule` methods, they act in a similar way: they retrieve a generic `Object` from `mMap.getKey()` and then return its type through casting (e.g. `return (String) o)`). 
 
-In this case things are a little bit differents: `getValue` specifies the `null` class and, after some calls, `getValueAt` is called to retrieve the serialized object. `mMap.valueAt` returns the generic `Object` that is then returned with a generic `T` cast (if no class is specified) to the caller. In the middle of this there is a really weird if condition that checks if the retrieved `object` is an instance of `BiFunction<?, ?, ?>`. Honestly, I was not able to determine this condition manually with code review, so I tried it at runtime and is actually triggering the true path when `getSerializable` is called. The `unwrapLazyValueFromMapLocked` stack trace is really interesting: `android.os.BaseBundle.unwrapLazyValueFromMapLocked` => `android.os.Parcel$LazyValue.apply` => `android.os.Parcel.readValue` => `android.os.Parcel.readSerializableInternal` 
+In this case things are a little bit different: `getValue` specifies the `null` class and, after some calls, `getValueAt` is called to retrieve the serialized object. `mMap.valueAt` returns the generic `Object` that is then returned with a generic `T` cast (if no class is specified) to the caller. In the middle of this there is a really weird if condition that checks if the retrieved `object` is an instance of `BiFunction<?, ?, ?>`. Honestly, I was not able to determine this condition manually with code review, so I tried it at runtime and is actually triggering the true path when `getSerializable` is called. The `unwrapLazyValueFromMapLocked` stack trace is really interesting: `android.os.BaseBundle.unwrapLazyValueFromMapLocked` => `android.os.Parcel$LazyValue.apply` => `android.os.Parcel.readValue` => `android.os.Parcel.readSerializableInternal` 
 
 ### `Parcel::readSerializableInternal`
-Since our main interest is on how input objects are handled and deserialized, we can directly focus on the latest method that seems to align with our objective:
+Since our main interest is in how input objects are handled and deserialized, we can directly focus on the latest method that seems to align with our objective:
 ```java
 private <T> T readSerializableInternal(@Nullable final ClassLoader loader,
 		@Nullable Class<T> clazz) {
@@ -268,26 +268,26 @@ A byte array is read from the parcel using `createByteArray` (`serializedData`) 
 
 ### `ObjectInputStream`
 The [`ObjectInputStream`](<https://developer.android.com/reference/java/io/ObjectInputStream#resolveClass(java.io.ObjectStreamClass)>) seems our next desired target to deep in. It is a [Java class object](https://docs.oracle.com/javase/8/docs/api/?java/io/ObjectInputStream.html) and we can extract few interesting statements from its official documentation:
-> An ObjectInputStream ==deserializes primitive data and objects== previously written using an ObjectOutputStream. 
+> An `ObjectInputStream` **deserializes primitive data and objects** previously written using an ObjectOutputStream. 
 
-> The method ==`readObject` is used to read an object from the stream==. Java's safe casting should be used to get the desired type.
+> The method **`readObject` is used to read an object from the stream**. Java's safe casting should be used to get the desired type.
 
-> ==Reading an object is analogous to running the constructors== of a new object. 
+> **Reading an object is analogous to running the constructors** of a new object. 
 
-> The default deserialization mechanism for objects ==restores the contents of each field== to the value and type it had when it was written.
+> The default deserialization mechanism for objects **restores the contents of each field** to the value and type it had when it was written.
 
-> Classes control how they are serialized by ==implementing== either the ==java.io.Serializable== or ==java.io.Externalizable== interfaces. ==Only objects== that support the java.io.Serializable or java.io.Externalizable interface can be read from streams.
+> Classes control how they are serialized by **implementing** either the **`java.io.Serializable`** or **`java.io.Externalizable`** interfaces. **Only objects** that support the `java.io.Serializable` or `java.io.Externalizable` interface can be read from streams.
 
-Since it's not an Android specific class, there are different online resources that have already covered the most out of it, especially this interesting talk back in 2016: ["Java deserialization vulnerabilities - The forgotten bug class" by Matthias Kaiser](https://www.youtube.com/watch?v=9Bw1urhk8zw). The key concept that we can summarize is that, in our case, the `resolveClass` method in  `ObjectInputStream` is overriden in order to use the "custom" class loader provided from the method parameter and that the deserialization process actually starts at [`ois.readObject`](https://cs.android.com/android/platform/superproject/main/+/main:libcore/ojluni/src/main/java/java/io/ObjectInputStream.java;l=420;drc=7f1a1070dbdd1bda00223be2f21936f63a8f3850).
+Since it's not an Android specific class, there are different online resources that have already covered the most out of it, especially this interesting talk back in 2016: ["Java deserialization vulnerabilities - The forgotten bug class" by Matthias Kaiser](https://www.youtube.com/watch?v=9Bw1urhk8zw). The key concept that we can summarize is that, in our case, the `resolveClass` method in  `ObjectInputStream` is overridden in order to use the "custom" class loader provided from the method parameter and that the deserialization process actually starts at [`ois.readObject`](https://cs.android.com/android/platform/superproject/main/+/main:libcore/ojluni/src/main/java/java/io/ObjectInputStream.java;l=420;drc=7f1a1070dbdd1bda00223be2f21936f63a8f3850).
 
 #### `ObjectInputStream::readObject`
 Finally we are at the core of the deserialization process and we can state that we are in a generic Java deserialization mechanism using the `ObjectInputStream::readObject` method. ~~My curiosity instinct tells me to go deeper far into the Java [Object Serialization Stream Protocol](https://docs.oracle.com/javase/8/docs/platform/serialization/spec/protocol.html) parsing process but the rational part reminds me to stay on the objective~~ (spoiler: I did it, partially). However, if you desire, you can go far deeper starting from [`ObjectInputStream::readObject`](https://cs.android.com/android/platform/superproject/main/+/main:libcore/ojluni/src/main/java/java/io/ObjectInputStream.java;l=420;drc=7f1a1070dbdd1bda00223be2f21936f63a8f3850) and [`ObjectInputStream::readObject0`](https://cs.android.com/android/platform/superproject/main/+/main:libcore/ojluni/src/main/java/java/io/ObjectInputStream.java;l=1389;drc=7f1a1070dbdd1bda00223be2f21936f63a8f3850).
 
 ## Deserialization Summary
-The code overview lead us to a pretty trivial conclusion: input objects are deserialized using the common Java `ObjectInputStream::readObject` mechanism and the class loader includes **application** and **system** specific paths. With that in mind, we are now aware that we are in a common Java deserialization scenario where we can instantiate system or application classes that implements the `java.io.Serialiazible` or ` java.io.Externalizable` interfaces. In order to create an impactful scenario, do we ~~**only**~~ need to find an useful gadget?
+The code overview lead us to a pretty trivial conclusion: input objects are deserialized using the common Java `ObjectInputStream::readObject` mechanism and the class loader includes **application** and **system** specific paths. With that in mind, we are now aware that we are in a common Java deserialization scenario where we can instantiate system or application classes that implement the `java.io.Serialiazible` or ` java.io.Externalizable` interfaces. In order to create an impactful scenario, do we ~~**only**~~ need to find a useful gadget?
 
 ## All you need is a good gadget, right?
-Instantiate a system object is pretty straightforward: you import the appropriate module and create the object from there. The same apply for third-party library objects, you regularly import them and you can use the exported classes. However, what if we want to target a specific class from a specific application? In this specific case, things are a little bit different.
+Instantiate a system object is pretty straightforward: you import the appropriate module and create the object from there. The same applies for third-party library objects, you regularly import them and you can use the exported classes. However, what if we want to target a specific class from a specific application? In this specific case, things are a little bit different.
 
 ### Application specific gadgets
 In order to properly instantiate a target application object into another application it is possible to use dynamic code loading and reflection. First, after having identified the target object, it is necessary to extract the respective `classesN.dex` file and store it in the application resources of the attacker application (or in any other desired way). It is possible to identify the appropriate dex file by reverse engineering the target application with `jadx-gui` , where the filename is displayed in the reversed Java code. Then, with `apktool` it is possible to directly extract it (`apktool --no-src d app.apk`).
@@ -312,7 +312,7 @@ startActivity(in);
 
 The code above shows how it is then possible to import the `classes.dex` file and instantiate a `DexClassLoader` [1] from it. The returned `ClassLoader` can be used to load the class [2] and subsequently instantiate the object through the `Object.newInstance()` method [3]. Class fields can be accessed and modified through the loaded class using the `getDeclaredField`  method [4]  and `Field.set` [5]. At the end of everything, it is just necessary to cast the input object to `Serializable` [6] in order to accomodate the `Intent.putExtra` logic.
 
-Of course, this is not the only way to achieve this result, stealthier in-memory solutions or completely different alternatives (e.g. raw object bytes) might be possible as well but are not in the interest of this blog post.
+Of course, this is not the only way to achieve this result, stealthier in-memory solutions or completely different alternatives (e.g. raw object bytes) might be possible as well but are not of interest of this blog post.
 
 ### Internal deserialization process
 Once the object is received from the target application through IPC, the deserialized object is a just a series of bytes (a bunch of 0s and 1s that need to be interpreted, as everything in computer science) and the previously mentioned [`ObjectInputStream::readFile0`](https://cs.android.com/android/platform/superproject/main/+/main:libcore/ojluni/src/main/java/java/io/ObjectInputStream.java;l=1389;drc=7f1a1070dbdd1bda00223be2f21936f63a8f3850) is responsible for that, following the Java [Object Serialization Stream Protocol](https://docs.oracle.com/javase/8/docs/platform/serialization/spec/protocol.html) specification. As we have said, we are not going to deepen this process, but there are a few interesting things that are in our interest:

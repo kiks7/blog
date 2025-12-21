@@ -1,5 +1,5 @@
 ---
-title:  "Android Internals IPC: Introduction"
+title:  "Android Inter-Process Communication: Introduction - Part 1"
 date:   2020-04-20 00:00:00 +0100
 tags:
 - Android

@@ -1,5 +1,5 @@
 ---
-title:  "Not All Roads Lead to PWN2OWN - CGI Fuzzing, AFL and ASAN (Part 3)"
+title:  "Not All Roads Lead to PWN2OWN: CGI Fuzzing, AFL and ASAN - Part 3"
 date:   2024-12-14 00:00:00 +0100
 tags:
 - Fuzzing

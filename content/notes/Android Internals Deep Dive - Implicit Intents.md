@@ -1,9 +1,9 @@
 ---
-title:  "Android Deep Dive - Implicit Intents"
-date:   2025-02-14 00:00:00 +0100
+title: Android Internals Deep Dive - Implicit Intents
+date: 2025-02-14 00:00:00 +0100
 tags:
-- Android
-- Reversing
+  - Android
+  - Reversing
 ---
 
 ## Introduction

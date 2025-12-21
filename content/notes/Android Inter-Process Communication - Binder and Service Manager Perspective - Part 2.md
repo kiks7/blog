@@ -1,5 +1,5 @@
 ---
-title:  "Android Internals IPC: Binder and Service Manager Perspective"
+title:  "Android Inter-Process Communication: Binder and Service Manager Perspective - Part 2"
 date:   2020-04-26 00:00:00 +0100
 tags:
 - Android

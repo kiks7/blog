@@ -1,5 +1,5 @@
 ---
-title:  "Not All Roads Lead to PWN2OWN: Hardware Hacking (Part 1)"
+title:  "Not All Roads Lead to PWN2OWN: Hardware Hacking - Part 1"
 date:   2024-12-01 00:00:00 +0100
 tags:
 - Reverse Engineering
